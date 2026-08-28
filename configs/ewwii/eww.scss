@@ -1,0 +1,90 @@
+@import "colors";
+
+// Global Defaults
+* {
+    all: unset; // Reset GTK defaults
+    font-family: "JetBrainsMono Nerd Font", "sans-serif";
+    font-size: 14px;
+}
+
+// ==========================================
+// Top Bar Styling
+// ==========================================
+.bar-container {
+    background-color: $bg-color-transparent;
+    color: $fg-color;
+    border-bottom: $border-width solid $border-color;
+    padding: 0 $padding;
+}
+
+// Workspaces
+.workspaces-box {
+    margin-top: 4px;
+    margin-bottom: 4px;
+}
+.workspace-btn {
+    min-width: 28px;
+    min-height: 28px;
+    border-radius: $border-radius;
+    padding: 2px 6px;
+    margin: 0 2px;
+    color: $fg-color;
+    background-color: transparent;
+    transition: all 0.2s ease-in-out;
+}
+.workspace-btn.active {
+    background-color: $accent-color;
+    color: $bg-color;
+    font-weight: bold;
+}
+.workspace-btn.occupied {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+.workspace-btn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+// Widgets
+.clock {
+    font-weight: bold;
+}
+
+.media-widget,
+.weather-widget,
+.network-widget,
+.bluetooth-widget,
+.audio-widget,
+.battery-widget {
+    padding: 0 8px;
+    color: $fg-color;
+}
+
+// ==========================================
+// OSD Styling
+// ==========================================
+.osd-container {
+    background-color: $popup-bg;
+    color: $popup-text;
+    border: $border-width solid $popup-border;
+    border-radius: $border-radius;
+    padding: $padding ($padding * 2);
+}
+
+.osd-icon {
+    font-size: 24px;
+    color: $accent-color;
+}
+
+.osd-message {
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.osd-progress {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+.osd-progress highlight {
+    background-color: $accent-color;
+    border-radius: 4px;
+}
