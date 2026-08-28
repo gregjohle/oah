@@ -1,0 +1,54 @@
+// Top Bar Configuration
+
+defpoll time {
+  interval = "1s"
+  command = "date '+%H:%M'"
+}
+
+deflisten workspaces_nbcl {
+  command = "bash ../../scripts/workspaces.sh"
+}
+
+widget "bar" {
+  monitor = 0
+  geometry {
+    x = "0%"
+    y = "0%"
+    width = "100%"
+    height = "35px"
+    anchor = "top center"
+  }
+
+  box {
+    orientation = "horizontal"
+    class = "bar-container"
+
+    // Left section: Workspaces
+    box {
+      class = "workspaces"
+      halign = "start"
+      
+      literal {
+        content = workspaces_nbcl
+      }
+    }
+
+    // Center section: Clock
+    box {
+      class = "clock"
+      halign = "center"
+      label {
+        text = time
+      }
+    }
+
+    // Right section: Custom Widgets (To be built)
+    box {
+      class = "status-tray"
+      halign = "end"
+      
+      // We will add custom Ewwii widgets for Network, Bluetooth, Audio, Battery, etc. here.
+      // Native GTK systray has been removed as per project requirements.
+    }
+  }
+}
