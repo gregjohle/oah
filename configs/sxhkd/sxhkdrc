@@ -56,10 +56,10 @@ super + ctrl + period
 	omarchy-transcode
 
 # --- Window Management ---
-super + q
+super + w
 	bspc node -c
 
-super + shift + q
+super + shift + w
 	bspc node -k
 
 super + s
