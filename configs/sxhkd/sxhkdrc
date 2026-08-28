@@ -1,60 +1,180 @@
 # ============================================================================
-# SXHKD Configuration
+# SXHKD Configuration (Mapped to Omarchy bindings)
 # ============================================================================
 
 # --- Core System ---
-# Reload sxhkd configuration
 super + Escape
-	pkill -USR1 -x sxhkd
+	omarchy-menu toggle system
 
-# Restart bspwm
+XF86PowerOff
+	omarchy-menu toggle system
+
+super + ctrl + l
+	omarchy-system-lock
+
 super + alt + r
 	bspc wm -r
 
-# Quit bspwm
 super + alt + q
 	bspc quit
 
-# --- Applications ---
-# Terminal (Ghostty is specified in the Kanban board)
+# --- Applications & Menus ---
 super + Return
 	ghostty
 
-# Ewwii Launcher
 super + space
 	ewwii open launcher
 
+super + alt + space
+	omarchy-menu toggle apps
+
+super + ctrl + c
+	omarchy-menu toggle capture
+
+super + ctrl + o
+	omarchy-menu toggle toggle
+
+super + ctrl + h
+	omarchy-menu toggle hardware
+
+super + ctrl + e
+	omarchy-shell shell toggle omarchy.emojis
+
+super + k
+	omarchy-menu-keybindings
+
+super + ctrl + q
+	omacalc
+
+XF86Calculator
+	omacalc
+
+super + ctrl + s
+	omarchy-menu toggle share
+
+super + ctrl + period
+	omarchy-transcode
+
 # --- Window Management ---
-# Close window
-super + w
+super + q
 	bspc node -c
 
-# Kill window
-super + shift + w
+super + shift + q
 	bspc node -k
 
-# Toggle floating state
 super + s
 	bspc node -t "~floating"
 
-# Toggle fullscreen
 super + f
 	bspc node -t "~fullscreen"
 
+super + backspace
+	omarchy-hyprland-window-transparency-toggle
+
+super + shift + backspace
+	omarchy-hyprland-window-gaps-toggle
+
+super + ctrl + backspace
+	omarchy-hyprland-window-single-square-aspect-toggle
+
 # --- Focus & Movement ---
-# Focus node in given direction
 super + {h,j,k,l}
 	bspc node -f {west,south,north,east}
 
-# Move node in given direction
+super + {Left,Down,Up,Right}
+	bspc node -f {west,south,north,east}
+
 super + shift + {h,j,k,l}
 	bspc node -s {west,south,north,east}
 
+super + shift + {Left,Down,Up,Right}
+	bspc node -s {west,south,north,east}
+
 # --- Workspaces ---
-# Focus workspace
 super + {1-9,0}
 	bspc desktop -f '^{1-9,10}'
 
-# Move focused window to workspace
 super + shift + {1-9,0}
 	bspc node -d '^{1-9,10}'
+
+# --- Screenshots & Capture ---
+Print
+	omarchy-capture-screenshot
+
+alt + Print
+	omarchy-capture-screenrecording --stop-recording || omarchy-menu toggle trigger.capture.screenrecord
+
+super + Print
+	pkill hyprpicker || hyprpicker -a
+
+super + ctrl + Print
+	omarchy-capture-text
+
+# --- Notifications ---
+super + comma
+	omarchy-shell notifications dismissOne
+
+super + shift + comma
+	omarchy-shell notifications dismissAll
+
+super + ctrl + comma
+	# Toggle silencing notifications (Needs implementation)
+
+super + alt + comma
+	omarchy-shell notifications invokeLast
+
+super + shift + alt + comma
+	omarchy-shell notifications showHistory
+
+# --- Hardware Toggles & Notifications ---
+super + ctrl + a
+	omarchy-shell shell toggle omarchy.audio
+
+super + ctrl + b
+	omarchy-shell shell toggle omarchy.bluetooth
+
+super + ctrl + d
+	omarchy-shell shell toggle omarchy.monitor
+
+super + ctrl + w
+	omarchy-shell shell toggle omarchy.network
+
+super + ctrl + p
+	omarchy-shell shell toggle omarchy.power
+
+super + ctrl + t
+	ghostty -e btop
+
+super + ctrl + alt + t
+	omarchy-notification-time
+
+super + ctrl + alt + b
+	omarchy-notification-battery
+
+super + ctrl + alt + w
+	omarchy-notification-weather
+
+super + ctrl + alt + d
+	omarchy-shell shell toggle omarchy.clock
+
+super + shift + ctrl + a
+	omarchy-agent --pick
+
+# --- Reminders ---
+super + ctrl + r
+	omarchy-menu toggle reminder-set
+
+super + ctrl + alt + r
+	omarchy-reminder show
+
+super + shift + ctrl + r
+	omarchy-reminder clear
+
+# --- Dictation (Voxtype) ---
+super + ctrl + x
+	voxtype record toggle
+
+F9
+	voxtype record start
+~F9
+	voxtype record stop
