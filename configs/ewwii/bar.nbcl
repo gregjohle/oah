@@ -2,11 +2,11 @@
 
 defpoll time {
   interval = "1s"
-  script = "date '+%H:%M'"
+  command = "date '+%H:%M'"
 }
 
 deflisten workspaces_nbcl {
-  script = "bash $(dirname $(readlink -f $0))/../../scripts/workspaces.sh"
+  command = "bash ../../scripts/workspaces.sh"
 }
 
 widget "bar" {
@@ -42,15 +42,13 @@ widget "bar" {
       }
     }
 
-    // Right section: System Tray & Status
+    // Right section: Custom Widgets (To be built)
     box {
       class = "status-tray"
       halign = "end"
       
-      systray {
-        spacing = 4
-        icon_size = 16
-      }
+      // We will add custom Ewwii widgets for Network, Bluetooth, Audio, Battery, etc. here.
+      // Native GTK systray has been removed as per project requirements.
     }
   }
 }
