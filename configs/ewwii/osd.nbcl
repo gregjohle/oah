@@ -1,0 +1,53 @@
+// OSD Configuration
+
+defvar osd_icon ""
+defvar osd_value 50
+defvar osd_message "50%"
+defvar osd_show_progress "true"
+
+window "osd" {
+  monitor = 0
+  geometry {
+    x = "0%"
+    y = "-67px"
+    width = "350px"
+    height = "60px"
+    anchor = "bottom center"
+  }
+  stacking = "overlay"
+  
+  box {
+    class = "osd-container"
+    orientation = "horizontal"
+    spacing = 16
+    
+    // Icon
+    label {
+      class = "osd-icon"
+      text = osd_icon
+    }
+    
+    // Progress Bar (dynamically rendered via scale)
+    box {
+      class = "osd-progress-wrapper show-${osd_show_progress}"
+      orientation = "vertical"
+      valign = "center"
+      hexpand = true
+      
+      scale {
+        class = "osd-progress"
+        value = osd_value
+        max = 100
+        min = 0
+        active = false
+      }
+    }
+    
+    // Message/Percentage readout
+    label {
+      class = "osd-message"
+      text = osd_message
+      halign = "end"
+    }
+  }
+}
