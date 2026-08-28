@@ -9,6 +9,37 @@ deflisten workspaces_nbcl {
   command = "bash ../../scripts/workspaces.sh"
 }
 
+// Custom Widget Pollers
+defpoll media {
+  interval = "2s"
+  command = "bash ../../scripts/bar-widgets.sh media"
+}
+
+defpoll weather {
+  interval = "15m"
+  command = "bash ../../scripts/bar-widgets.sh weather"
+}
+
+defpoll battery {
+  interval = "30s"
+  command = "bash ../../scripts/bar-widgets.sh battery"
+}
+
+defpoll audio {
+  interval = "2s"
+  command = "bash ../../scripts/bar-widgets.sh audio"
+}
+
+defpoll network {
+  interval = "10s"
+  command = "bash ../../scripts/bar-widgets.sh network"
+}
+
+defpoll bluetooth {
+  interval = "10s"
+  command = "bash ../../scripts/bar-widgets.sh bluetooth"
+}
+
 widget "bar" {
   monitor = 0
   geometry {
@@ -23,13 +54,20 @@ widget "bar" {
     orientation = "horizontal"
     class = "bar-container"
 
-    // Left section: Workspaces
+    // Left section: Workspaces and Media
     box {
       class = "workspaces"
       halign = "start"
+      spacing = 16
       
       literal {
         content = workspaces_nbcl
+      }
+      
+      // Media Now Playing (only visible if media is not empty)
+      label {
+        class = "media-widget"
+        text = media
       }
     }
 
@@ -42,13 +80,36 @@ widget "bar" {
       }
     }
 
-    // Right section: Custom Widgets (To be built)
+    // Right section: Hardware & Network Status
     box {
       class = "status-tray"
       halign = "end"
+      spacing = 12
       
-      // We will add custom Ewwii widgets for Network, Bluetooth, Audio, Battery, etc. here.
-      // Native GTK systray has been removed as per project requirements.
+      label {
+        class = "weather-widget"
+        text = weather
+      }
+      
+      label {
+        class = "network-widget"
+        text = network
+      }
+      
+      label {
+        class = "bluetooth-widget"
+        text = bluetooth
+      }
+      
+      label {
+        class = "audio-widget"
+        text = audio
+      }
+      
+      label {
+        class = "battery-widget"
+        text = battery
+      }
     }
   }
 }
