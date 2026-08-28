@@ -9,35 +9,34 @@ deflisten workspaces_nbcl {
   command = "bash ../../scripts/workspaces.sh"
 }
 
-// Custom Widget Pollers
-defpoll media {
-  interval = "2s"
-  command = "bash ../../scripts/bar-widgets.sh media"
+// Custom Widget Pollers & Listeners
+deflisten media {
+  command = "bash ../../scripts/widgets/media.sh"
 }
 
 defpoll weather {
   interval = "15m"
-  command = "bash ../../scripts/bar-widgets.sh weather"
+  command = "bash ../../scripts/widgets/weather.sh"
 }
 
 defpoll battery {
   interval = "30s"
-  command = "bash ../../scripts/bar-widgets.sh battery"
+  command = "bash ../../scripts/widgets/battery.sh"
 }
 
 defpoll audio {
   interval = "2s"
-  command = "bash ../../scripts/bar-widgets.sh audio"
+  command = "bash ../../scripts/widgets/audio.sh"
 }
 
 defpoll network {
   interval = "10s"
-  command = "bash ../../scripts/bar-widgets.sh network"
+  command = "bash ../../scripts/widgets/network.sh"
 }
 
 defpoll bluetooth {
   interval = "10s"
-  command = "bash ../../scripts/bar-widgets.sh bluetooth"
+  command = "bash ../../scripts/widgets/bluetooth.sh"
 }
 
 widget "bar" {
@@ -64,7 +63,7 @@ widget "bar" {
         content = workspaces_nbcl
       }
       
-      // Media Now Playing (only visible if media is not empty)
+      // Media Now Playing
       label {
         class = "media-widget"
         text = media
