@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+
+# ============================================================================
+# BSPWM Configuration
+# ============================================================================
+
+# Terminate running instances of sxhkd (key daemon) before starting a new one
+killall -q -w sxhkd
+sxhkd -c "$(dirname "$0")/../sxhkd/sxhkdrc" &
+
+# ============================================================================
+# Monitors & Workspaces
+# ============================================================================
+# Automatically detect the primary monitor and assign workspaces
+PRIMARY_MONITOR=$(xrandr --query | grep ' connected primary' | cut -d' ' -f1)
+if [ -z "$PRIMARY_MONITOR" ]; then
+    PRIMARY_MONITOR=$(bspc query -M --names | head -n 1)
+fi
+
+bspc monitor "$PRIMARY_MONITOR" -d 1 2 3 4 5 6 7 8 9
+
+# ============================================================================
+# Window Rules & Behavior
+# ============================================================================
+# Tiling settings
+bspc config split_ratio          0.50
+bspc config borderless_monocle   true
+bspc config gapless_monocle      true
+
+# Visuals (Gaps and Borders)
+# Matched to Omarchy's Hyprland defaults (gaps_in: 5, gaps_out: 10)
+bspc config window_gap            10
+bspc config border_width          2
+
+# Border Colors
+# Matched to Omarchy's defaults (active: #33ccff / inactive: #595959)
+bspc config normal_border_color   "#595959"
+bspc config active_border_color   "#595959"
+bspc config focused_border_color  "#33ccff"
+bspc config presel_feedback_color "#00ff99"
+
+# ============================================================================
+# Application Specific Rules
+# ============================================================================
+# Ensure floating dialogs and specific apps spawn floating
+bspc rule -a "Pavucontrol" state=floating rectangle=800x600+0+0 center=true
+bspc rule -a "Lxappearance" state=floating center=true
+bspc rule -a "polkit-gnome-authentication-agent-1" state=floating center=true
+
+# Wait for bspwm to initialize properly
+sleep 1
