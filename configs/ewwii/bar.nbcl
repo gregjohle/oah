@@ -1,0 +1,52 @@
+// Top Bar Configuration
+
+defpoll time {
+  interval = "1s"
+  script = "date '+%H:%M'"
+}
+
+widget "bar" {
+  monitor = 0
+  geometry {
+    x = "0%"
+    y = "0%"
+    width = "100%"
+    height = "35px"
+    anchor = "top center"
+  }
+
+  box {
+    orientation = "horizontal"
+    class = "bar-container"
+
+    // Left section: Workspaces
+    box {
+      class = "workspaces"
+      halign = "start"
+      // Placeholder until we wire up the bspwm workspace script
+      label {
+        text = "[1] 2 3 4"
+      }
+    }
+
+    // Center section: Clock
+    box {
+      class = "clock"
+      halign = "center"
+      label {
+        text = time
+      }
+    }
+
+    // Right section: System Tray & Status
+    box {
+      class = "status-tray"
+      halign = "end"
+      
+      systray {
+        spacing = 4
+        icon_size = 16
+      }
+    }
+  }
+}
