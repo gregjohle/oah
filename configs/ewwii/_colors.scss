@@ -1,0 +1,24 @@
+// ============================================================================
+// Core SCSS Variables
+// This file will eventually be auto-generated or overridden by our 
+// theme generator (Phase 4) so we keep it strictly variable-driven.
+// ============================================================================
+
+// Base Colors
+$bg-color: #1e1e2e;
+$bg-color-transparent: rgba(30, 30, 46, 0.97);
+$fg-color: #cdd6f4;
+$accent-color: #33ccff;
+$border-color: #595959;
+
+// Popups & OSDs
+$popup-bg: $bg-color-transparent;
+$popup-border: $border-color;
+$popup-text: $fg-color;
+
+// Sizing & Radii
+$border-radius: 12px;
+$border-width: 2px;
+$bar-height: 35px;
+$padding: 8px;
+$spacing: 16px;
