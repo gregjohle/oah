@@ -16,17 +16,13 @@ if grep -q "corner-radius = 0;" "$PICOM_CONF"; then
     STATE="Rounded"
 else
     # Currently rounded, switch to sharp
-    sed -i 's/corner-radius = [0-9]*;/corner-radius = 0;/g' "$PICOM_CONF"
+    sed -i 's/corner-radius = [0-9]\+;/corner-radius = 0;/g' "$PICOM_CONF"
     STATE="Sharp"
 fi
 
-# Reload picom gracefully using SIGUSR1, or restart if that fails
+# Reload picom gracefully using SIGUSR1
 if pgrep -x picom > /dev/null; then
-    # Try gracefully reloading config first (some forks support this)
-    # Otherwise restart picom entirely
-    killall -q picom
-    sleep 0.5
-    picom --config "$PICOM_CONF" -b
+    killall -USR1 picom
 fi
 
 # Optional: Trigger an OSD notification using our future Ewwii OSD
