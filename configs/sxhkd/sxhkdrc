@@ -1,0 +1,60 @@
+# ============================================================================
+# SXHKD Configuration
+# ============================================================================
+
+# --- Core System ---
+# Reload sxhkd configuration
+super + Escape
+	pkill -USR1 -x sxhkd
+
+# Restart bspwm
+super + alt + r
+	bspc wm -r
+
+# Quit bspwm
+super + alt + q
+	bspc quit
+
+# --- Applications ---
+# Terminal (Ghostty is specified in the Kanban board)
+super + Return
+	ghostty
+
+# Ewwii Launcher
+super + space
+	ewwii open launcher
+
+# --- Window Management ---
+# Close window
+super + w
+	bspc node -c
+
+# Kill window
+super + shift + w
+	bspc node -k
+
+# Toggle floating state
+super + s
+	bspc node -t "~floating"
+
+# Toggle fullscreen
+super + f
+	bspc node -t "~fullscreen"
+
+# --- Focus & Movement ---
+# Focus node in given direction
+super + {h,j,k,l}
+	bspc node -f {west,south,north,east}
+
+# Move node in given direction
+super + shift + {h,j,k,l}
+	bspc node -s {west,south,north,east}
+
+# --- Workspaces ---
+# Focus workspace
+super + {1-9,0}
+	bspc desktop -f '^{1-9,10}'
+
+# Move focused window to workspace
+super + shift + {1-9,0}
+	bspc node -d '^{1-9,10}'
