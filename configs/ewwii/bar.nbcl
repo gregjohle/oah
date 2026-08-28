@@ -5,6 +5,10 @@ defpoll time {
   script = "date '+%H:%M'"
 }
 
+deflisten workspaces_nbcl {
+  script = "bash $(dirname $(readlink -f $0))/../../scripts/workspaces.sh"
+}
+
 widget "bar" {
   monitor = 0
   geometry {
@@ -23,9 +27,9 @@ widget "bar" {
     box {
       class = "workspaces"
       halign = "start"
-      // Placeholder until we wire up the bspwm workspace script
-      label {
-        text = "[1] 2 3 4"
+      
+      literal {
+        content = workspaces_nbcl
       }
     }
 
