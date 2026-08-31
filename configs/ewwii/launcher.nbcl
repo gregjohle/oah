@@ -1,0 +1,20 @@
+// Launcher Configuration
+
+widget "launcher" {
+  monitor = 0
+  geometry {
+    width = "500px"
+    height = "60px"
+    anchor = "center"
+  }
+
+  box {
+    orientation = "vertical"
+    class = "launcher-container"
+
+    input {
+      class = "launcher-input"
+      onaccept = "bash ../../scripts/launcher_exec.sh {}"
+    }
+  }
+}
