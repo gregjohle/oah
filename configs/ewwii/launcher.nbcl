@@ -14,7 +14,7 @@ widget "launcher" {
 
     input {
       class = "launcher-input"
-      onaccept = "bash ../../scripts/launcher_exec.sh {}"
+      onaccept = "bash '/home/greg/Documents/Omarchy At Home Project/oah/scripts/launcher_exec.sh' '{}'"
     }
   }
 }

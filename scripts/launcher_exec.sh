@@ -5,8 +5,8 @@
 COMMAND="$1"
 
 if [ -n "$COMMAND" ]; then
-    # Run the command detached
-    eval "$COMMAND" &
+    # Run detached from the launcher process tree and suppress output
+    setsid sh -c "$COMMAND" >/dev/null 2>&1 &
 fi
 
 # Hide the Ewwii launcher after execution
