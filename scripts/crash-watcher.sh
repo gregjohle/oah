@@ -12,15 +12,16 @@ journalctl -n 0 -f _COMM=systemd-coredump | grep --line-buffered "dumped core" |
         PROCESS_NAME="An application"
     fi
 
-    # Trigger an interactive notification and wait for the user's action
-    ACTION=$(notify-send "Crash Detected" "$PROCESS_NAME has crashed. Do you want to analyze it with AI?" \
-        --action="analyze=Analyze with AI" \
-        --icon=dialog-error \
-        --app-name="OAH Crash Handler" \
-        --wait)
-        
-    if [ "$ACTION" = "analyze" ]; then
-        # Run the handoff script in the background
-        bash "$(dirname "$0")/crash-handoff.sh" "$PROCESS_NAME" &
-    fi
+    # Trigger an interactive notification in the background to not block the watcher loop
+    (
+        ACTION=$(notify-send "Crash Detected" "$PROCESS_NAME has crashed. Do you want to analyze it with AI?" \
+            --action="analyze=Analyze with AI" \
+            --icon=dialog-error \
+            --app-name="OAH Crash Handler" \
+            --wait)
+            
+        if [ "$ACTION" = "analyze" ]; then
+            bash "$(dirname "$0")/crash-handoff.sh" "$PROCESS_NAME"
+        fi
+    ) &
 done

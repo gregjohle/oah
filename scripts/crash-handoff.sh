@@ -22,7 +22,16 @@ fi
 # Construct the prompt
 PROMPT="The application $PROCESS_NAME just crashed. Here is the stack trace from coredumpctl. Please analyze it and explain the root cause and potential fixes."
 
-# Open Ghostty and launch the AI agent. 
-# We pipe the trace file into the agent and pass the prompt as an argument.
-# Using a generic approach that works with most standard CLI AI tools.
-ghostty -e bash -c "echo 'Analyzing crash for $PROCESS_NAME using $AI_AGENT...'; cat '$TRACE_FILE' | $AI_AGENT '$PROMPT'; echo ''; echo 'Press any key to exit...'; read -n 1" &
+# Documenting the expected I/O behavior for users:
+# If you are using a tool that requires specific flags rather than standard piped input,
+# you can define the entire execution template via OAH_AI_COMMAND. 
+# For example: OAH_AI_COMMAND="my_agent --file \$TRACE_FILE --prompt \"\$PROMPT\""
+if [ -n "$OAH_AI_COMMAND" ]; then
+    EXEC_CMD="$OAH_AI_COMMAND"
+else
+    EXEC_CMD='cat "$TRACE_FILE" | $AI_AGENT "$PROMPT"'
+fi
+
+# Open Ghostty and launch the AI agent securely.
+export PROCESS_NAME AI_AGENT TRACE_FILE PROMPT EXEC_CMD
+ghostty -e bash -c 'echo "Analyzing crash for $PROCESS_NAME..."; eval "$EXEC_CMD"; echo ""; echo "Press any key to exit..."; read -n 1' &
