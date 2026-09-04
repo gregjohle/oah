@@ -18,6 +18,8 @@ def main():
     colors_file = sys.argv[1]
     template_dirs = sys.argv[2:]
 
+    theme_dir = os.path.dirname(os.path.abspath(colors_file))
+
     with open(colors_file, 'rb') as f:
         theme = tomllib.load(f)
 
@@ -48,6 +50,13 @@ def main():
         colors['adwaita_theme'] = 'Adwaita'
     else:
         colors['adwaita_theme'] = 'Adwaita-dark'
+
+    icon_theme = 'Adwaita'
+    icons_file = os.path.join(theme_dir, 'icons.theme')
+    if os.path.exists(icons_file):
+        with open(icons_file, 'r') as icf:
+            icon_theme = icf.read().strip()
+    colors['icon_theme'] = icon_theme
         
     for k, v in list(colors.items()):
         if v.startswith('#'):

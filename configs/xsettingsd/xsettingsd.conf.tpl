@@ -1,2 +1,2 @@
 Net/ThemeName "{{ adwaita_theme }}"
-Net/IconThemeName "Adwaita"
+Net/IconThemeName "{{ icon_theme }}"

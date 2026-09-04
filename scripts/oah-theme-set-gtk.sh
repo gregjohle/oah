@@ -46,3 +46,14 @@ if command -v dconf >/dev/null 2>&1; then
         dconf write /org/gnome/desktop/interface/color-scheme "'prefer-dark'"
     fi
 fi
+
+# Change gnome icon theme color
+GNOME_ICONS_THEME="$THEME_DIR/icons.theme"
+ICON_THEME="Adwaita"
+if [[ -f "$GNOME_ICONS_THEME" ]]; then
+  ICON_THEME=$(cat "$GNOME_ICONS_THEME")
+fi
+
+if command -v gsettings >/dev/null 2>&1; then
+    gsettings set org.gnome.desktop.interface icon-theme "$ICON_THEME"
+fi
