@@ -57,3 +57,33 @@ $spacing: 16px;
   font-weight: bold;
   border-radius: 4px;
 }
+
+// Theme Creator
+.theme-creator-container {
+  background-color: $popup-bg;
+  border: $border-width solid $popup-border;
+  border-radius: $border-radius;
+  padding: 20px;
+}
+.theme-creator-title {
+  color: $accent-color;
+  font-size: 24px;
+  font-weight: bold;
+}
+.theme-creator-preview {
+  border-radius: 8px;
+  border: 1px solid $border-color;
+}
+.theme-creator-input {
+  background-color: $bg-color;
+  color: $fg-color;
+  border: 1px solid $border-color;
+  border-radius: 4px;
+  padding: 8px;
+}
+.color-swatch {
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 20px;
+  border: 1px solid $border-color;
+}

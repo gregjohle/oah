@@ -1,0 +1,78 @@
+defvar creator_image ""
+defvar creator_name "custom-theme"
+defvar creator_color1 "#000000"
+defvar creator_color2 "#000000"
+defvar creator_color3 "#000000"
+defvar creator_color4 "#000000"
+
+widget "theme_creator" {
+  monitor = 0
+  geometry {
+    width = "600px"
+    height = "500px"
+    anchor = "center"
+  }
+
+  box {
+    orientation = "vertical"
+    class = "theme-creator-container"
+    spacing = 16
+
+    label {
+      class = "theme-creator-title"
+      text = "Create New Theme"
+    }
+
+    button {
+      class = "theme-btn"
+      onclick = "bash ../../scripts/oah-theme-creator-ui.sh pick_image"
+      label { text = creator_image == "" ? "Select Image..." : "Change Image" }
+    }
+
+    image {
+      class = "theme-creator-preview"
+      path = creator_image
+      image-width = 400
+      image-height = 200
+      visible = creator_image != ""
+    }
+
+    box {
+      orientation = "horizontal"
+      spacing = 8
+      halign = "center"
+      visible = creator_image != ""
+
+      box { class = "color-swatch" style = "background-color: ${creator_color1};" }
+      box { class = "color-swatch" style = "background-color: ${creator_color2};" }
+      box { class = "color-swatch" style = "background-color: ${creator_color3};" }
+      box { class = "color-swatch" style = "background-color: ${creator_color4};" }
+    }
+
+    input {
+      class = "theme-creator-input"
+      value = creator_name
+      onchange = "eww update creator_name='{}'"
+      visible = creator_image != ""
+    }
+
+    box {
+      orientation = "horizontal"
+      halign = "center"
+      spacing = 16
+      visible = creator_image != ""
+
+      button {
+        class = "theme-btn"
+        onclick = "bash ../../scripts/oah-theme-creator-ui.sh cancel"
+        label { text = "Cancel" }
+      }
+
+      button {
+        class = "theme-btn-apply"
+        onclick = "bash ../../scripts/oah-theme-creator-ui.sh save"
+        label { text = "Save Theme" }
+      }
+    }
+  }
+}
