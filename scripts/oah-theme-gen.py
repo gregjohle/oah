@@ -28,6 +28,22 @@ def main():
             colors[k] = v
 
     # Mapping Omarchy fallbacks for variables like color8
+
+    # Mapping Omarchy fallbacks
+    fallbacks = {
+        'bright_red': 'red',
+        'bright_yellow': 'yellow',
+        'bright_green': 'green',
+        'bright_cyan': 'cyan',
+        'bright_blue': 'blue',
+        'bright_magenta': 'magenta',
+        'bright_foreground': 'foreground',
+        'dark_background': 'background',
+        'color8': 'muted'
+    }
+    for k, v in fallbacks.items():
+        if k not in colors and v in colors:
+            colors[k] = colors[v]
     if 'color8' not in colors and 'muted' in colors:
         colors['color8'] = colors['muted']
 

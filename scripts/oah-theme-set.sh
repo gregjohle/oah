@@ -27,7 +27,7 @@ mkdir -p "$HOME/.local/state/oah/current"
 echo "$THEME_NAME" > "$HOME/.local/state/oah/current/theme.name"
 
 # Generate templated configs
-"$(dirname "$0")/oah-theme-gen.py" "$THEME_DIR/colors.toml" configs/ewwii/
+"$(dirname "$0")/oah-theme-gen.py" "$THEME_DIR/colors.toml" configs/
 
 # Check if this theme has a .heic file for timewall
 HEIC_FILE=""
@@ -58,3 +58,16 @@ fi
 eww reload 2>/dev/null || true
 
 echo "Theme '$THEME_NAME' successfully applied!"
+
+# Ghostty Spoke
+if [[ -f configs/ghostty/config ]]; then
+    mkdir -p ~/.config/ghostty
+    cp configs/ghostty/config ~/.config/ghostty/config
+fi
+"$(dirname "$0")/oah-theme-set-gtk.sh"
+
+# X11 Spoke
+if [[ -f configs/x11/Xresources ]]; then
+    xrdb -merge configs/x11/Xresources 2>/dev/null || true
+fi
+"$(dirname "$0")/oah-theme-set-vscode.sh"

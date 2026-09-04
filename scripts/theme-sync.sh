@@ -32,7 +32,7 @@ fi
 
 if [[ -f "$COLORS_TOML" ]]; then
     # Generate the theme UI
-    "$BASE_DIR/scripts/oah-theme-gen.py" "$COLORS_TOML" "$BASE_DIR/configs/ewwii/"
+    "$BASE_DIR/scripts/oah-theme-gen.py" "$COLORS_TOML" "$BASE_DIR/configs/"
     
     # Reload Ewwii to apply CSS changes
     eww reload 2>/dev/null || true
@@ -51,3 +51,16 @@ fi
 
 # Save current background path for reference
 ln -sf "$IMAGE_PATH" "$HOME/.local/state/oah/current/background"
+
+# Ghostty Spoke
+if [[ -f "$BASE_DIR/configs/ghostty/config" ]]; then
+    mkdir -p ~/.config/ghostty
+    cp "$BASE_DIR/configs/ghostty/config" ~/.config/ghostty/config
+fi
+"$BASE_DIR/scripts/oah-theme-set-gtk.sh"
+
+# X11 Spoke
+if [[ -f "$BASE_DIR/configs/x11/Xresources" ]]; then
+    xrdb -merge "$BASE_DIR/configs/x11/Xresources" 2>/dev/null || true
+fi
+"$BASE_DIR/scripts/oah-theme-set-vscode.sh"
