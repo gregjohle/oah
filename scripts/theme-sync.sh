@@ -74,3 +74,4 @@ fi
 "$BASE_DIR/scripts/oah-theme-set-xsettingsd.sh"
 "$BASE_DIR/scripts/oah-theme-set-bspwm.sh"
 "$BASE_DIR/scripts/oah-theme-set-rofi-dunst.sh"
+"$BASE_DIR/scripts/oah-theme-set-signals.sh"

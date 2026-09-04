@@ -81,3 +81,4 @@ fi
 "$(dirname "$0")/oah-theme-set-xsettingsd.sh"
 "$(dirname "$0")/oah-theme-set-bspwm.sh"
 "$(dirname "$0")/oah-theme-set-rofi-dunst.sh"
+"$(dirname "$0")/oah-theme-set-signals.sh"
