@@ -1,0 +1,54 @@
+defvar oah_theme_index 0
+defvar oah_theme_name "Unknown"
+defvar oah_theme_preview ""
+
+widget "theme_switcher" {
+  monitor = 0
+  geometry {
+    width = "600px"
+    height = "400px"
+    anchor = "center"
+  }
+
+  box {
+    orientation = "vertical"
+    class = "theme-switcher-container"
+    spacing = 16
+
+    label {
+      class = "theme-switcher-title"
+      text = "Select Theme"
+    }
+
+    image {
+      class = "theme-switcher-preview"
+      path = oah_theme_preview
+      image-width = 560
+      image-height = 300
+    }
+
+    box {
+      orientation = "horizontal"
+      halign = "center"
+      spacing = 32
+
+      button {
+        class = "theme-btn"
+        onclick = "bash ../../scripts/oah-theme-switcher.sh prev"
+        label { text = "◀ Prev" }
+      }
+
+      button {
+        class = "theme-btn-apply"
+        onclick = "bash ../../scripts/oah-theme-switcher.sh apply"
+        label { text = oah_theme_name }
+      }
+
+      button {
+        class = "theme-btn"
+        onclick = "bash ../../scripts/oah-theme-switcher.sh next"
+        label { text = "Next ▶" }
+      }
+    }
+  }
+}

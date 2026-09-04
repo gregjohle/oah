@@ -23,3 +23,37 @@ $border-width: 2px;
 $bar-height: 35px;
 $padding: 8px;
 $spacing: 16px;
+
+// Theme Switcher
+.theme-switcher-container {
+  background-color: $popup-bg;
+  border: $border-width solid $popup-border;
+  border-radius: $border-radius;
+  padding: 20px;
+}
+.theme-switcher-title {
+  color: $accent-color;
+  font-size: 24px;
+  font-weight: bold;
+}
+.theme-switcher-preview {
+  border-radius: 8px;
+  border: 1px solid $border-color;
+}
+.theme-btn {
+  padding: 8px 16px;
+  background-color: $border-color;
+  color: $fg-color;
+  border-radius: 4px;
+}
+.theme-btn:hover {
+  background-color: $accent-color;
+  color: $bg-color;
+}
+.theme-btn-apply {
+  padding: 8px 32px;
+  background-color: $accent-color;
+  color: $bg-color;
+  font-weight: bold;
+  border-radius: 4px;
+}
