@@ -1,0 +1,16 @@
+* {
+    background-color: #1a1b26;
+    text-color: #a9b1d6;
+    border-color: #7aa2f7;
+    selected-background: #292e42;
+    selected-text: #a9b1d6;
+}
+window {
+    border: 2px;
+    border-color: @border-color;
+    background-color: @background-color;
+}
+element selected {
+    background-color: @selected-background;
+    text-color: @selected-text;
+}

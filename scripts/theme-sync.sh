@@ -32,7 +32,7 @@ fi
 
 if [[ -f "$COLORS_TOML" ]]; then
     # Generate the theme UI
-    "$BASE_DIR/scripts/oah-theme-gen.py" "$COLORS_TOML" "$BASE_DIR/configs/"
+    "$BASE_DIR/scripts/oah-theme-gen.py" "$COLORS_TOML" "$BASE_DIR/configs/" ~/.config/oah/templates
     
     # Reload Ewwii to apply CSS changes
     eww reload 2>/dev/null || true
@@ -70,3 +70,7 @@ fi
 "$BASE_DIR/scripts/oah-theme-set-claude.sh"
 "$BASE_DIR/scripts/oah-theme-set-pi.sh"
 "$BASE_DIR/scripts/oah-theme-set-keyboard.sh"
+"$BASE_DIR/scripts/oah-theme-set-browser.sh"
+"$BASE_DIR/scripts/oah-theme-set-xsettingsd.sh"
+"$BASE_DIR/scripts/oah-theme-set-bspwm.sh"
+"$BASE_DIR/scripts/oah-theme-set-rofi-dunst.sh"

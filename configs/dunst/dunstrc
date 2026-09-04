@@ -1,0 +1,15 @@
+[global]
+    frame_color = "#7aa2f7"
+    separator_color = "#7aa2f7"
+
+[urgency_low]
+    background = "#1a1b26"
+    foreground = "#a9b1d6"
+
+[urgency_normal]
+    background = "#1a1b26"
+    foreground = "#a9b1d6"
+
+[urgency_critical]
+    background = "#f7768e"
+    foreground = "#1a1b26"

@@ -1,0 +1,78 @@
+#!/bin/bash
+set -euo pipefail
+
+if (( EUID == 0 )); then
+  export PATH=/usr/local/sbin:/usr/local/bin:/usr/bin:/usr/sbin:/bin:/sbin
+fi
+
+POLICY_DIRS=(
+  /etc/chromium/policies/managed
+  /etc/opt/chrome/policies/managed
+  /etc/opt/edge/policies/managed
+  /etc/brave/policies/managed
+)
+
+PACKAGED_PATH="$(readlink -f "$0")"
+
+if (( $# != 1 )); then
+  exit 1
+fi
+
+color="$1"
+
+if [[ ! $color =~ ^[0-9a-fA-F]{6}$ ]]; then
+  exit 1
+fi
+
+require_root() {
+  if (( EUID == 0 )); then
+    return
+  elif [[ -t 0 ]]; then
+    exec sudo "$PACKAGED_PATH" "$@"
+  else
+    exec pkexec "$PACKAGED_PATH" "$@"
+  fi
+}
+
+require_root "$color"
+
+failed=0
+staged=""
+cleanup() {
+  if [[ -n $staged ]]; then
+    rm -f "$staged"
+  fi
+}
+trap cleanup EXIT
+
+for policy_dir in "${POLICY_DIRS[@]}"; do
+  [[ -d $policy_dir && ! -L $policy_dir ]] || continue
+
+  dest=$policy_dir/color.json
+  staged=$(mktemp) || {
+    failed=1
+    continue
+  }
+  printf '{"BrowserThemeColor": "#%s", "BrowserColorScheme": "device"}\n' "$color" >"$staged"
+
+  if [[ -L $dest || -d $dest ]]; then
+    if ! rm -rf -- "$dest"; then
+      rm -f "$staged"
+      staged=""
+      failed=1
+      continue
+    fi
+  fi
+
+  if ! install -m 0644 -o root -g root -T "$staged" "$dest"; then
+    rm -f "$staged"
+    staged=""
+    failed=1
+    continue
+  fi
+
+  rm -f "$staged"
+  staged=""
+done
+
+exit "$failed"

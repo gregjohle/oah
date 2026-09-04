@@ -12,11 +12,11 @@ def hex_to_rgb(hex_str):
 
 def main():
     if len(sys.argv) < 3:
-        print("Usage: oah-theme-gen.py <colors.toml> <template_dir>")
+        print("Usage: oah-theme-gen.py <colors.toml> <template_dir> [template_dir2...]")
         sys.exit(1)
 
     colors_file = sys.argv[1]
-    template_dir = sys.argv[2]
+    template_dirs = sys.argv[2:]
 
     with open(colors_file, 'rb') as f:
         theme = tomllib.load(f)
@@ -27,9 +27,6 @@ def main():
         if isinstance(v, str):
             colors[k] = v
 
-    # Mapping Omarchy fallbacks for variables like color8
-
-    # Mapping Omarchy fallbacks
     fallbacks = {
         'bright_red': 'red',
         'bright_yellow': 'yellow',
@@ -47,7 +44,11 @@ def main():
     if 'color8' not in colors and 'muted' in colors:
         colors['color8'] = colors['muted']
 
-    # Add derived colors
+    if colors.get('mode') == 'light':
+        colors['adwaita_theme'] = 'Adwaita'
+    else:
+        colors['adwaita_theme'] = 'Adwaita-dark'
+        
     for k, v in list(colors.items()):
         if v.startswith('#'):
             colors[f"{k}_strip"] = v.lstrip('#')
@@ -57,21 +58,23 @@ def main():
         key = match.group(1).strip()
         return colors.get(key, match.group(0))
 
-    for root, dirs, files in os.walk(template_dir):
-        for file in files:
-            if file.endswith('.tpl'):
-                tpl_path = os.path.join(root, file)
-                out_path = tpl_path[:-4] # strip .tpl
-                
-                with open(tpl_path, 'r') as f:
-                    content = f.read()
+    for template_dir in template_dirs:
+        if not os.path.isdir(template_dir): continue
+        for root, dirs, files in os.walk(template_dir):
+            for file in files:
+                if file.endswith('.tpl'):
+                    tpl_path = os.path.join(root, file)
+                    out_path = tpl_path[:-4] # strip .tpl
+                    
+                    with open(tpl_path, 'r') as f:
+                        content = f.read()
 
-                new_content = re.sub(r'\{\{\s*([a-zA-Z0-9_]+)\s*\}\}', replace_match, content)
+                    new_content = re.sub(r'\{\{\s*([a-zA-Z0-9_]+)\s*\}\}', replace_match, content)
 
-                with open(out_path, 'w') as f:
-                    f.write(new_content)
-                
-                print(f"Generated {out_path}")
+                    with open(out_path, 'w') as f:
+                        f.write(new_content)
+                    
+                    print(f"Generated {out_path}")
 
 if __name__ == '__main__':
     main()

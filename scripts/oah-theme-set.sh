@@ -27,7 +27,7 @@ mkdir -p "$HOME/.local/state/oah/current"
 echo "$THEME_NAME" > "$HOME/.local/state/oah/current/theme.name"
 
 # Generate templated configs
-"$(dirname "$0")/oah-theme-gen.py" "$THEME_DIR/colors.toml" configs/
+"$(dirname "$0")/oah-theme-gen.py" "$THEME_DIR/colors.toml" configs/ ~/.config/oah/templates
 
 # Check if this theme has a .heic file for timewall
 HEIC_FILE=""
@@ -77,3 +77,7 @@ fi
 "$(dirname "$0")/oah-theme-set-claude.sh"
 "$(dirname "$0")/oah-theme-set-pi.sh"
 "$(dirname "$0")/oah-theme-set-keyboard.sh"
+"$(dirname "$0")/oah-theme-set-browser.sh"
+"$(dirname "$0")/oah-theme-set-xsettingsd.sh"
+"$(dirname "$0")/oah-theme-set-bspwm.sh"
+"$(dirname "$0")/oah-theme-set-rofi-dunst.sh"
