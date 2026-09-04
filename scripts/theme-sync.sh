@@ -64,3 +64,9 @@ if [[ -f "$BASE_DIR/configs/x11/Xresources" ]]; then
     xrdb -merge "$BASE_DIR/configs/x11/Xresources" 2>/dev/null || true
 fi
 "$BASE_DIR/scripts/oah-theme-set-vscode.sh"
+"$BASE_DIR/scripts/oah-theme-set-foot.sh"
+"$BASE_DIR/scripts/oah-theme-set-tmux.sh"
+"$BASE_DIR/scripts/oah-theme-set-obsidian.sh"
+"$BASE_DIR/scripts/oah-theme-set-claude.sh"
+"$BASE_DIR/scripts/oah-theme-set-pi.sh"
+"$BASE_DIR/scripts/oah-theme-set-keyboard.sh"

@@ -71,3 +71,9 @@ if [[ -f configs/x11/Xresources ]]; then
     xrdb -merge configs/x11/Xresources 2>/dev/null || true
 fi
 "$(dirname "$0")/oah-theme-set-vscode.sh"
+"$(dirname "$0")/oah-theme-set-foot.sh"
+"$(dirname "$0")/oah-theme-set-tmux.sh"
+"$(dirname "$0")/oah-theme-set-obsidian.sh"
+"$(dirname "$0")/oah-theme-set-claude.sh"
+"$(dirname "$0")/oah-theme-set-pi.sh"
+"$(dirname "$0")/oah-theme-set-keyboard.sh"
