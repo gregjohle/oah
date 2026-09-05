@@ -1,5 +1,7 @@
 // Launcher Configuration
 
+defvar oah_menu_results = "[]"
+
 widget "launcher" {
   monitor = 0
   geometry {
@@ -14,7 +16,29 @@ widget "launcher" {
 
     input {
       class = "launcher-input"
-      onaccept = "bash '/home/greg/Documents/Omarchy At Home Project/oah/scripts/launcher_exec.sh' '{}'"
+      onchange = "/home/greg/Documents/Omarchy At Home Project/oah/scripts/oah-update-menu.sh '{}'"
+      onaccept = "bash -c 'EXEC=$(/home/greg/Documents/Omarchy At Home Project/oah/scripts/oah-menu-daemon.py \"{}\" | jq -r \".[0].exec\"); /home/greg/Documents/Omarchy At Home Project/oah/scripts/launcher_exec.sh \"$EXEC\"'"
+    }
+
+    box {
+      orientation = "vertical"
+      class = "launcher-results"
+
+      for item in oah_menu_results {
+        button {
+          class = "launcher-item"
+          onclick = "/home/greg/Documents/Omarchy At Home Project/oah/scripts/launcher_exec.sh '${item.exec}'"
+          box {
+            orientation = "horizontal"
+            image {
+              path = item.icon
+            }
+            label {
+              text = item.name
+            }
+          }
+        }
+      }
     }
   }
 }
