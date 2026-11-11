@@ -9,6 +9,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
+import qs.Oah // OAH(x11): was Hyprland IPC, now bspwm-backed
 import Quickshell.Services.Notifications
 import qs.Commons
 import qs.Commons as Commons
@@ -32,7 +33,7 @@ Item {
   property string deckDisplayName: ""
   readonly property var displayNames: Quickshell.screens.map(function(screen) { return screen.name })
   readonly property string focusedDisplayName: {
-    var name = Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""
+    var name = Compositor.focusedMonitor ? Compositor.focusedMonitor.name : "" // OAH(x11): was Hyprland.
     return displayNames.indexOf(name) >= 0 ? name : (displayNames[0] || "")
   }
   readonly property string targetDisplayName: displayNames.indexOf(deckDisplayName) >= 0 ? deckDisplayName : focusedDisplayName
@@ -102,7 +103,7 @@ Item {
     var screen = null
     for (var s = 0; s < Quickshell.screens.length; s++)
       if (String(Quickshell.screens[s].name) === name) screen = Quickshell.screens[s]
-    var monitor = screen ? Hyprland.monitorFor(screen) : null
+    var monitor = screen ? Compositor.monitorFor(screen) : null // OAH(x11): was Hyprland.
     var workspace = monitor ? monitor.activeWorkspace : null
     if (!workspace || !workspace.hasFullscreen) return false
     var windows = workspace.toplevels ? workspace.toplevels.values : []
@@ -129,7 +130,7 @@ Item {
   Timer {
     id: hyprRefresh
     interval: 100
-    onTriggered: { Hyprland.refreshToplevels(); hyprSettle.restart() }
+    onTriggered: { Compositor.refreshToplevels(); hyprSettle.restart() } // OAH(x11): was Hyprland.
   }
   Timer {
     id: hyprSettle
@@ -949,7 +950,7 @@ Item {
   }
 
   function openWindows() {
-    var list = Hyprland.toplevels ? Hyprland.toplevels.values : []
+    var list = Compositor.toplevels ? Compositor.toplevels.values : [] // OAH(x11): was Hyprland.
     var out = []
     for (var i = 0; i < list.length; i++) {
       var ipc = list[i].lastIpcObject
@@ -1063,7 +1064,7 @@ Item {
   function focusWindow(win) {
     if (!win) return
     if (!/^0x[0-9a-f]+$/i.test(String(win.address || ""))) return
-    Hyprland.dispatch('hl.dsp.focus({window = hl.get_window("address:' + win.address + '")})')
+    Compositor.dispatch('hl.dsp.focus({window = hl.get_window("address:' + win.address + '")})') // OAH(x11): was Hyprland.
   }
 
   // A click: Omarchy's own --exec command first, then the sender's default

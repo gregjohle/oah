@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import qs.Oah // OAH(x11): was Hyprland IPC, now bspwm-backed
 import Quickshell.Wayland
 import qs.Commons as Commons
 
@@ -17,7 +18,7 @@ PanelWindow {
 
   property var targetScreen: null
   readonly property var targetMonitor: {
-    var monitors = Hyprland.monitors.values
+    var monitors = Compositor.monitors.values // OAH(x11): was Hyprland.
     for (var i = 0; i < monitors.length; i++) {
       if (targetScreen && monitors[i].name === targetScreen.name) return monitors[i]
     }
@@ -42,7 +43,7 @@ PanelWindow {
   }
 
   function focusedScreen() {
-    var monitor = Hyprland.focusedMonitor
+    var monitor = Compositor.focusedMonitor // OAH(x11): was Hyprland.
     var name = monitor ? String(monitor.name || "") : ""
     for (var i = 0; i < Quickshell.screens.length; i++) {
       if (Quickshell.screens[i].name === name) return Quickshell.screens[i]
@@ -54,9 +55,9 @@ PanelWindow {
   // scale can lag behind Qt. Refresh on opening and on scale changes while open.
   onShownChanged: {
     targetScreen = shown ? focusedScreen() : null
-    if (shown) Hyprland.refreshMonitors()
+    if (shown) Compositor.refreshMonitors() // OAH(x11): was Hyprland.
   }
-  onDevicePixelRatioChanged: if (shown) Hyprland.refreshMonitors()
+  onDevicePixelRatioChanged: if (shown) Compositor.refreshMonitors() // OAH(x11): was Hyprland.
 
   Connections {
     target: Quickshell

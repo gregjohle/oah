@@ -1,5 +1,6 @@
 import Quickshell
 import Quickshell.Hyprland
+import qs.Oah // OAH(x11): was Hyprland IPC, now bspwm-backed
 import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
@@ -749,7 +750,7 @@ Item {
   // The physical mode Hyprland reports for a screen, as hyprctl monitors does.
   // Qt's whole-number devicePixelRatio can't rebuild it at a fractional scale.
   function panelModeFor(screen) {
-    var monitor = screen ? Hyprland.monitorFor(screen) : null
+    var monitor = screen ? Compositor.monitorFor(screen) : null // OAH(x11): was Hyprland.
     return monitor ? ({
       width: monitor.width,
       height: monitor.height,
@@ -926,7 +927,7 @@ Item {
   // belongs. Empty until Hyprland reports one, which leaves panel routing on
   // its per-monitor fallback rather than guessing at an output.
   function focusedScreenName() {
-    var monitor = Hyprland.focusedMonitor
+    var monitor = Compositor.focusedMonitor // OAH(x11): was Hyprland.
     return monitor ? String(monitor.name || "") : ""
   }
 
@@ -1665,7 +1666,7 @@ Item {
   Connections {
     target: Hyprland
     function onRawEvent(event) {
-      if (event && String(event.name) === "fullscreen") Hyprland.refreshToplevels()
+      if (event && String(event.name) === "fullscreen") Compositor.refreshToplevels() // OAH(x11): was Hyprland.
     }
   }
 
@@ -1801,9 +1802,9 @@ Item {
     // Whether the active workspace on this screen holds a real fullscreen
     // window, which fades the bar out.
     readonly property bool underFullscreen: {
-      var monitor = Hyprland.monitorFor(screen)
+      var monitor = Compositor.monitorFor(screen) // OAH(x11): was Hyprland.
       var workspace = monitor ? monitor.activeWorkspace : null
-      return !!workspace && BarModel.fullscreenOn(Hyprland.toplevels.values, workspace.id)
+      return !!workspace && BarModel.fullscreenOn(Compositor.toplevels.values, workspace.id) // OAH(x11): was Hyprland.
     }
 
     // Idle, only the strip takes input, so the clear expanse passes clicks

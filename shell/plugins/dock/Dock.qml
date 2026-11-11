@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import qs.Oah // OAH(x11): was Hyprland IPC, now bspwm-backed
 import Quickshell.Io
 import qs.Commons
 import "DockModel.js" as DockModel
@@ -60,7 +61,7 @@ Item {
     })
 
     var windows = []
-    var toplevels = Hyprland.toplevels.values
+    var toplevels = Compositor.toplevels.values // OAH(x11): was Hyprland.
     for (var i = 0; i < toplevels.length; i++) {
       var toplevel = toplevels[i].wayland
       if (!toplevel || !toplevel.appId || toplevel.parent) continue
@@ -176,7 +177,7 @@ Item {
       root.launch(item)
       return
     }
-    var monitor = Hyprland.focusedMonitor
+    var monitor = Compositor.focusedMonitor // OAH(x11): was Hyprland.
     var workspaceId = monitor && monitor.activeWorkspace ? monitor.activeWorkspace.id : -1
     var index = DockModel.pickWindow(item.windows.map(function(window) {
       return { workspaceId: window.workspaceId, minimized: window.minimized, activated: window.toplevel.activated }
@@ -197,7 +198,7 @@ Item {
     var steps = []
     var after = []
     if (window.minimized) {
-      var monitor = Hyprland.focusedMonitor
+      var monitor = Compositor.focusedMonitor // OAH(x11): was Hyprland.
       var workspace = monitor && monitor.activeWorkspace ? monitor.activeWorkspace.id : -1
       if (!(workspace >= 1)) return
       // A restored window is simply there again, without animating in.
@@ -299,13 +300,13 @@ Item {
     root.modes = ({})
     root.pendingModes = []
     root.modeGeneration++
-    var monitors = Hyprland.monitors.values
+    var monitors = Compositor.monitors.values // OAH(x11): was Hyprland.
     for (var i = 0; i < monitors.length; i++) {
       if (monitors[i].activeWorkspace) root.readMode(monitors[i].activeWorkspace.id)
     }
     // Read the rest ahead of time, so the dock shows or hides the moment the
     // user switches to one.
-    var workspaces = Hyprland.workspaces.values
+    var workspaces = Compositor.workspaces.values // OAH(x11): was Hyprland.
     for (var j = 0; j < workspaces.length; j++) root.readMode(workspaces[j].id)
   }
 
@@ -338,8 +339,8 @@ Item {
       // Hyprland's window and workspace lists do not follow fullscreen on
       // their own.
       else if (name === "fullscreen") {
-        Hyprland.refreshWorkspaces()
-        Hyprland.refreshToplevels()
+        Compositor.refreshWorkspaces() // OAH(x11): was Hyprland.
+        Compositor.refreshToplevels() // OAH(x11): was Hyprland.
       }
     }
   }
