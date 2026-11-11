@@ -12,7 +12,8 @@ Hyprland's output shapes and exit codes, so upstream code keeps working:
   switchxkblayout <kbd|all> next|prev|N
   hyprsunset temperature [K] | identity     night light via xrandr gamma
   keyword monitor NAME,disable|NAME,...     via xrandr
-  cursorpos, reload, version
+  reload                        apply the current theme's border colours to bspwm
+  cursorpos, version
 
 A dispatch that fails, or a window selector that matches nothing, exits 1
 like Hyprland. Anything without a ready X11 equivalent (window groups, the
@@ -602,9 +603,63 @@ def hyprsunset(args):
         unsupported(f"hyprsunset {' '.join(args)}")
 
 
+# --- reload: theme border colours ---------------------------------------------
+
+def hypr_color(text):
+    """First colour in a Hyprland colour expression -> "#rrggbb", or None.
+    Handles "#rrggbb", rgb(rrggbb), rgba(rrggbbaa) and gradient tables
+    ({ colors = { "rgba(...)", ... }, angle = 45 }): bspwm draws solid
+    borders, so a gradient uses its first colour (see Deferred: gradients)."""
+    m = re.search(r"#([0-9a-fA-F]{6})|rgba?\(([0-9a-fA-F]{6})(?:[0-9a-fA-F]{2})?\)", text)
+    if not m:
+        return None
+    return "#" + (m.group(1) or m.group(2)).lower()
+
+
+def reload():
+    """Hyprland re-reads its config, including the current theme's
+    hyprland.lua; the X11 equivalent is applying that theme's border colours
+    to bspwm. omarchy-theme-set calls this through omarchy-restart-hyprctl."""
+    theme = os.path.expanduser("~/.local/state/omarchy/current/theme/hyprland.lua")
+    try:
+        text = open(theme, encoding="utf-8").read()
+    except OSError:
+        print("ok")
+        return
+    # A theme that sets only one colour leaves the other at upstream's default
+    # (default/hypr/looknfeel.lua), as Hyprland's reload does.
+    defaults = {"active_border_color": "#33ccff", "inactive_border_color": "#595959"}
+    try:
+        looknfeel = open(os.path.join(os.environ.get("OMARCHY_PATH", ""), "default", "hypr", "looknfeel.lua")).read()
+        for name in defaults:
+            m = re.search(rf"local\s+{name}\s*=\s*(.+)", looknfeel)
+            if m and hypr_color(m.group(1)):
+                defaults[name] = hypr_color(m.group(1))
+    except OSError:
+        pass
+    colors = dict(defaults)
+    for name in ("active_border_color", "inactive_border_color"):
+        m = re.search(rf"local\s+{name}\s*=\s*(.+)", text)
+        if m and hypr_color(m.group(1)):
+            colors[name] = hypr_color(m.group(1))
+    if colors.get("active_border_color"):
+        bspc("config", "focused_border_color", colors["active_border_color"])
+    if colors.get("inactive_border_color"):
+        bspc("config", "normal_border_color", colors["inactive_border_color"])
+        bspc("config", "active_border_color", colors["inactive_border_color"])
+    print("ok")
+
+
 # --- main ------------------------------------------------------------------------
 
 def main(argv):
+    # --instance/-i picks a Hyprland instance (upstream passes `--instance 0`
+    # from outside a session); there's only one bspwm, so drop it.
+    argv = list(argv)
+    for flag in ("--instance", "-i"):
+        while flag in argv:
+            i = argv.index(flag)
+            del argv[i:i + 2]
     args = [a for a in argv if a not in ("-j", "--json", "-q", "--quiet", "-r", "--refresh")]
     if not args:
         unsupported("no command")
@@ -644,7 +699,7 @@ def main(argv):
         else:
             print(f"{loc.get('x', 0)}, {loc.get('y', 0)}")
     elif cmd == "reload":
-        print("ok")
+        reload()
     elif cmd == "version":
         if "-j" in argv:
             emit({"branch": "oah-x11", "tag": "oah", "flags": []})
