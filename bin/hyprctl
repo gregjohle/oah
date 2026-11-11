@@ -269,11 +269,10 @@ def desktop_selector(ws):
 
 def focus_desktop(sel):
     if sel.endswith(".occupied"):
-        # Hyprland counts the shown workspace as existing even when empty, and
-        # bspwm wraps, so fall back to plain adjacency when nothing is occupied.
-        if run("bspc", "desktop", "-f", sel).returncode == 0:
-            return
-        sel = sel.replace(".occupied", "")
+        # e±1/m±1 step between existing workspaces. With no other occupied
+        # desktop there is nowhere to go, and Hyprland stays put (exit 0).
+        run("bspc", "desktop", "-f", sel)
+        return
     bspc("desktop", "-f", sel)
 
 
@@ -375,7 +374,18 @@ def dispatch(expr):
     elif name == "exec_cmd":
         if not pos:
             raise Failed("exec_cmd needs a command")
-        subprocess.Popen(["sh", "-c", pos[0]], start_new_session=True,
+        command = pos[0]
+        # Hyprland exec rules: "[workspace 3 silent] cmd". A numeric workspace
+        # becomes a one-shot bspwm rule for the next window; other rules have
+        # no X11 equivalent and are dropped so the command still runs.
+        rule = re.match(r"\s*\[([^\]]*)\]\s*(.*)$", command, re.S)
+        if rule:
+            command = rule.group(2)
+            ws = re.search(r"\bworkspace\s+(\d+)", rule.group(1))
+            if ws:
+                must("bspc", "rule", "-a", "*", "-o", f"desktop=^{ws.group(1)}",
+                     *(["follow=off"] if "silent" in rule.group(1) else []))
+        subprocess.Popen(["sh", "-c", command], start_new_session=True,
                          stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     elif name in ("window.close", "killactive"):
         bspc("node", resolve_window(a.get("window")), "-c")
@@ -486,18 +496,32 @@ KEYBOARD = "oah-x11-keyboard"
 LAYOUT_STATE = os.path.join(STATE_DIR, "keyboard-layouts")
 
 
+LAYOUT_APPLIED = os.path.join(STATE_DIR, "keyboard-layouts-applied")
+
+
+def read_layouts(path):
+    try:
+        return [tuple((p + "\t").split("\t")[:2]) for p in open(path).read().splitlines() if p]
+    except OSError:
+        return None
+
+
+def write_layouts(path, layouts):
+    os.makedirs(STATE_DIR, exist_ok=True)
+    with open(path, "w") as f:
+        f.write("".join(f"{l}\t{v}\n" for l, v in layouts))
+
+
 def canonical_layouts(current):
     """The configured layout order. switchxkblayout rotates setxkbmap's list so
-    the active layout is first; this remembers the order it started from."""
-    try:
-        saved = [tuple((p + "\t").split("\t")[:2]) for p in open(LAYOUT_STATE).read().splitlines() if p]
-        if sorted(saved) == sorted(current):
-            return saved
-    except OSError:
-        pass
-    os.makedirs(STATE_DIR, exist_ok=True)
-    with open(LAYOUT_STATE, "w") as f:
-        f.write("".join(f"{l}\t{v}\n" for l, v in current))
+    the active layout is first, and records the order it applied. If the
+    current list is that order, the saved canonical order stands; anything
+    else is a change made outside this command and becomes the new order."""
+    saved, applied = read_layouts(LAYOUT_STATE), read_layouts(LAYOUT_APPLIED)
+    if saved and applied == current and sorted(saved) == sorted(current):
+        return saved
+    write_layouts(LAYOUT_STATE, current)
+    write_layouts(LAYOUT_APPLIED, current)
     return current
 
 
@@ -532,6 +556,7 @@ def switchxkblayout(arg):
         if q.get("options"):
             cmd += ["-option", "", "-option", q["options"]]
         must(*cmd)
+        write_layouts(LAYOUT_APPLIED, order)
     print("ok")
 
 
