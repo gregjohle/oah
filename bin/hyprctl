@@ -1,0 +1,449 @@
+#!/usr/bin/env python3
+"""OAH(x11): `hyprctl` for an X11/bspwm session.
+
+Omarchy's shell and its omarchy-* commands call `hyprctl` throughout. This
+stand-in answers the subcommands they use with bspwm/X11 equivalents, in
+Hyprland's output shapes, so upstream code keeps working unmodified:
+
+  dispatch <hl.dsp.* call>      bspc / xdotool / xset equivalents
+  monitors, clients, activewindow, workspaces, activeworkspace   (JSON with -j)
+  getoption <opt>               values from bspwm and OAH's picom config
+  devices                       keyboards from setxkbmap
+  switchxkblayout <kbd> next|prev|N
+  hyprsunset temperature [K]    night light via xrandr gamma
+  keyword monitor NAME,disable|NAME,preferred,...   via xrandr
+  cursorpos, reload, version
+
+Anything without a ready X11 equivalent (window groups, the scratchpad,
+`eval`, window tags, ...) exits 1 with "unsupported" on stderr, the same way
+a failed Hyprland call does; those features are on OAH's Deferred list.
+"""
+
+import json
+import os
+import re
+import shlex
+import subprocess
+import sys
+
+OAH_ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+STATE_DIR = os.path.join(os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"), "oah")
+IDENTITY_TEMPERATURE = 6000  # upstream NightlightModel.js
+
+
+def run(*cmd, check=False):
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    if check and r.returncode != 0:
+        raise RuntimeError(r.stderr.strip() or f"{cmd[0]} failed")
+    return r.stdout
+
+
+def bspc(*args):
+    return run("bspc", *args)
+
+
+def unsupported(what):
+    print(f"hyprctl (OAH x11): unsupported: {what}", file=sys.stderr)
+    sys.exit(1)
+
+
+def emit(value, as_json):
+    if as_json or not isinstance(value, str):
+        print(json.dumps(value, indent=2))
+    else:
+        print(value)
+
+
+# --- State ------------------------------------------------------------------
+
+def wm_state():
+    try:
+        return json.loads(bspc("wm", "-d"))
+    except json.JSONDecodeError:
+        return {"monitors": [], "focusedMonitorId": None}
+
+
+def workspace_id(name, index):
+    try:
+        return int(name)
+    except ValueError:
+        return index + 1
+
+
+def window_title(wid):
+    return run("xdotool", "getwindowname", str(wid)).strip()
+
+
+def window_pid(wid):
+    m = re.search(r"(\d+)\s*$", run("xprop", "-id", str(wid), "_NET_WM_PID"))
+    return int(m.group(1)) if m else -1
+
+
+def collect(state):
+    """Hyprland-shaped monitors, workspaces and clients from bspwm's state."""
+    monitors, workspaces, clients = [], [], []
+    focused_node = None
+    for mi, m in enumerate(state.get("monitors", [])):
+        rect = m["rectangle"]
+        focused_mon = m["id"] == state.get("focusedMonitorId")
+        mon = {
+            "id": mi, "name": m["name"], "description": m["name"], "make": "", "model": "", "serial": "",
+            "width": rect["width"], "height": rect["height"], "refreshRate": refresh_rate(m["name"]),
+            "x": rect["x"], "y": rect["y"], "scale": 1.0, "transform": 0,
+            "focused": focused_mon, "dpmsStatus": True, "vrr": False, "disabled": False,
+            "reserved": [m["padding"]["left"], m["padding"]["top"], m["padding"]["right"], m["padding"]["bottom"]],
+            "activeWorkspace": None, "specialWorkspace": {"id": 0, "name": ""},
+        }
+        for d in m["desktops"]:
+            ws_id = workspace_id(d["name"], len(workspaces))
+            ws = {"id": ws_id, "name": d["name"], "monitor": m["name"], "monitorID": mi, "windows": 0,
+                  "hasfullscreen": False, "lastwindow": "0x0", "lastwindowtitle": ""}
+            active = d["id"] == m["focusedDesktopId"]
+            for node in leaves(d["root"]):
+                c = node["client"]
+                rect_c = (c.get("floatingRectangle") if c["state"] == "floating" else c.get("tiledRectangle")) or node["rectangle"]
+                address = hex(node["id"])
+                title = window_title(node["id"])
+                client = {
+                    "address": address, "mapped": True, "hidden": bool(node.get("hidden")),
+                    "at": [rect_c["x"], rect_c["y"]], "size": [rect_c["width"], rect_c["height"]],
+                    "workspace": {"id": ws_id, "name": d["name"]},
+                    "floating": c["state"] == "floating", "pseudo": c["state"] == "pseudo_tiled",
+                    "monitor": mi, "class": c.get("className", ""), "title": title,
+                    "initialClass": c.get("className", ""), "initialTitle": title,
+                    "pid": window_pid(node["id"]), "xwayland": False, "pinned": bool(node.get("sticky")),
+                    "fullscreen": 2 if c["state"] == "fullscreen" else 0,
+                    "fullscreenClient": 2 if c["state"] == "fullscreen" else 0,
+                    "grouped": [], "tags": [], "swallowing": "0x0", "focusHistoryID": 0,
+                }
+                clients.append(client)
+                ws["windows"] += 1
+                ws["hasfullscreen"] = ws["hasfullscreen"] or client["fullscreen"] > 0
+                if node["id"] == d.get("focusedNodeId"):
+                    ws["lastwindow"], ws["lastwindowtitle"] = address, title
+                    if active and focused_mon:
+                        focused_node = client
+            if active:
+                mon["activeWorkspace"] = {"id": ws_id, "name": d["name"]}
+            if active or ws["windows"]:
+                workspaces.append(ws)
+        monitors.append(mon)
+    return monitors, workspaces, clients, focused_node
+
+
+def leaves(node):
+    if not node:
+        return []
+    if node.get("client"):
+        return [node]
+    return leaves(node.get("firstChild")) + leaves(node.get("secondChild"))
+
+
+def refresh_rate(output):
+    # The current mode is marked with '*' in xrandr's listing for the output.
+    block = re.search(rf"^{re.escape(output)} connected.*?(?=^\S|\Z)", run("xrandr", "--query"), re.M | re.S)
+    if block:
+        m = re.search(r"(\d+(?:\.\d+)?)\*", block.group(0))
+        # Virtual X servers report 0 Hz; Hyprland always reports a real rate.
+        if m and float(m.group(1)) > 0:
+            return float(m.group(1))
+    return 60.0
+
+
+# --- dispatch ---------------------------------------------------------------
+
+DIRECTION = {"l": "west", "r": "east", "u": "north", "d": "south",
+             "left": "west", "right": "east", "up": "north", "down": "south"}
+
+
+def parse_call(expr):
+    """`hl.dsp.window.move({ workspace = "3", follow = false })` -> ("window.move", {...}, [positional])"""
+    m = re.match(r"\s*hl\.dsp\.([\w.]+)\s*\((.*)\)\s*$", expr, re.S)
+    if not m:
+        unsupported(f"dispatch {expr}")
+    name, body = m.group(1), m.group(2)
+    args = {}
+    for key, quoted, bare in re.findall(r'(\w+)\s*=\s*(?:"([^"]*)"|([\w.+\-:]+))', body):
+        args[key] = quoted if quoted or not bare else bare
+    positional = re.findall(r'^\s*"((?:[^"\\]|\\.)*)"', body)
+    return name, args, positional
+
+
+def target(args):
+    w = args.get("window", "")
+    m = re.search(r"address:(0x[0-9a-fA-F]+)", w)
+    return m.group(1) if m else "focused"
+
+
+def desktop_selector(ws):
+    ws = str(ws)
+    return {"e+1": "next.local", "e-1": "prev.local", "m+1": "next.local", "m-1": "prev.local",
+            "+1": "next.local", "-1": "prev.local", "previous": "last"}.get(ws, ws)
+
+
+def dispatch(expr):
+    name, a, pos = parse_call(expr)
+    t = target(a)
+
+    if name == "focus":
+        if "workspace" in a:
+            if a["workspace"].startswith("special"):
+                unsupported("special workspace (scratchpad)")
+            bspc("desktop", "-f", desktop_selector(a["workspace"]))
+        elif "direction" in a:
+            bspc("node", "-f", DIRECTION[a["direction"]])
+        elif "monitor" in a:
+            mon = {"+1": "next", "-1": "prev"}.get(a["monitor"], DIRECTION.get(a["monitor"], a["monitor"]))
+            bspc("monitor", "-f", mon)
+        elif "window" in a:
+            bspc("node", t, "-f")
+        else:
+            unsupported(f"focus {a}")
+    elif name == "exec_cmd":
+        if not pos:
+            unsupported("exec_cmd without a command")
+        subprocess.Popen(["sh", "-c", pos[0].encode().decode("unicode_escape")], start_new_session=True,
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    elif name in ("window.close", "killactive"):
+        bspc("node", t, "-c")
+    elif name == "window.kill":
+        bspc("node", t, "-k")
+    elif name == "window.move":
+        if "workspace" in a:
+            if a["workspace"].startswith("special"):
+                unsupported("move to special workspace (scratchpad)")
+            follow = a.get("follow", "true") != "false"
+            bspc("node", t, "-d", desktop_selector(a["workspace"]), *(["--follow"] if follow else []))
+        elif "direction" in a:
+            bspc("node", t, "-s", DIRECTION[a["direction"]])
+        else:
+            unsupported(f"window.move {a}")
+    elif name == "window.swap":
+        bspc("node", t, "-s", DIRECTION[a.get("direction", "l")])
+    elif name == "window.resize":
+        x, y = int(float(a.get("x", 0))), int(float(a.get("y", 0)))
+        if x:
+            bspc("node", t, "-z", "right", str(x), "0")
+        if y:
+            bspc("node", t, "-z", "bottom", "0", str(y))
+    elif name == "window.float":
+        state = {"toggle": "~floating", "enable": "floating", "disable": "tiled"}.get(a.get("action", "toggle"), "~floating")
+        bspc("node", t, "-t", state)
+    elif name == "window.fullscreen":
+        if a.get("mode", "fullscreen") != "fullscreen":
+            unsupported("maximized / full-width window (Deferred)")
+        bspc("node", t, "-t", "~fullscreen")
+    elif name == "window.pseudo":
+        bspc("node", t, "-t", "~pseudo_tiled")
+    elif name == "window.pin":
+        bspc("node", t, "-g", "sticky")
+    elif name == "window.cycle_next":
+        bspc("node", "-f", ("prev" if a.get("next") == "false" else "next") + ".local.window")
+    elif name in ("window.bring_to_top", "window.alter_zorder"):
+        node = bspc("query", "-N", "-n", t).strip()
+        if node:
+            run("xdotool", "windowraise", node)
+    elif name == "workspace.move":
+        mon = DIRECTION.get(a.get("monitor", ""), a.get("monitor", "next"))
+        bspc("desktop", "-m", mon, "--follow")
+    elif name == "layout":
+        if pos and pos[0] == "togglesplit":
+            bspc("node", "@parent", "-R", "90")
+        else:
+            unsupported(f"layout {pos}")
+    elif name == "dpms":
+        action = a.get("action", pos[0] if pos else "toggle")
+        run("xset", "dpms", "force", "off" if action in ("off", "disable") else "on")
+    else:
+        unsupported(f"dispatcher hl.dsp.{name}")
+    print("ok")
+
+
+# --- getoption / devices / keyboard -----------------------------------------
+
+def picom_option(key, default):
+    try:
+        with open(os.path.join(OAH_ROOT, "configs", "picom", "picom.conf")) as f:
+            m = re.search(rf"^\s*{re.escape(key)}\s*=\s*([^;]+);", f.read(), re.M)
+            return m.group(1).strip() if m else default
+    except OSError:
+        return default
+
+
+def getoption(opt):
+    if opt == "decoration:rounding":
+        n = int(picom_option("corner-radius", "0"))
+        return {"option": opt, "int": n, "set": True}
+    if opt in ("general:gaps_out", "general:gaps_in"):
+        gap = bspc("config", "window_gap").strip() or "0"
+        return {"option": opt, "css": f"{gap} {gap} {gap} {gap}", "custom": f"{gap} {gap} {gap} {gap}", "set": True}
+    if opt == "general:border_size":
+        return {"option": opt, "int": int(bspc("config", "border_width").strip() or 0), "set": True}
+    if opt == "animations:enabled":
+        return {"option": opt, "int": 1, "bool": True, "set": True}
+    unsupported(f"getoption {opt}")
+
+
+def xkb_query():
+    q = dict(re.findall(r"^(\w+):\s+(.*)$", run("setxkbmap", "-query"), re.M))
+    layouts = [x for x in q.get("layout", "us").split(",") if x]
+    variants = q.get("variant", "").split(",")
+    return q, layouts, variants
+
+
+def layout_description(code):
+    try:
+        with open("/usr/share/X11/xkb/rules/evdev.lst") as f:
+            section = False
+            for line in f:
+                if line.startswith("! "):
+                    section = line.strip() == "! layout"
+                    continue
+                if section:
+                    parts = line.split(None, 1)
+                    if len(parts) == 2 and parts[0] == code:
+                        return parts[1].strip()
+    except OSError:
+        pass
+    return code
+
+
+KEYBOARD = "oah-x11-keyboard"
+
+
+def devices():
+    q, layouts, _ = xkb_query()
+    # The active layout is kept first (switchxkblayout rotates the list).
+    kb = {
+        "address": "0x0", "name": KEYBOARD, "rules": q.get("rules", "evdev"), "model": q.get("model", ""),
+        "layout": ",".join(layouts), "variant": q.get("variant", ""), "options": q.get("options", ""),
+        "active_layout_index": 0, "active_keymap": layout_description(layouts[0]), "capsLock": False,
+        "numLock": False, "main": True,
+    }
+    return {"mice": [], "keyboards": [kb], "tablets": [], "touch": [], "switches": []}
+
+
+def switchxkblayout(arg):
+    q, layouts, variants = xkb_query()
+    if len(layouts) < 2:
+        print("ok")
+        return
+    variants = (variants + [""] * len(layouts))[:len(layouts)]
+    pairs = list(zip(layouts, variants))
+    if arg == "next":
+        pairs = pairs[1:] + pairs[:1]
+    elif arg == "prev":
+        pairs = pairs[-1:] + pairs[:-1]
+    elif arg.isdigit():
+        i = int(arg) % len(pairs)
+        pairs = pairs[i:] + pairs[:i]
+    else:
+        unsupported(f"switchxkblayout {arg}")
+    cmd = ["setxkbmap", "-layout", ",".join(p[0] for p in pairs), "-variant", ",".join(p[1] for p in pairs)]
+    if q.get("options"):
+        cmd += ["-option", "", "-option", q["options"]]
+    run(*cmd, check=True)
+    print("ok")
+
+
+# --- night light --------------------------------------------------------------
+
+def temperature_gamma(kelvin):
+    """RGB gamma multipliers for a colour temperature (Tanner Helland's fit)."""
+    t = max(1000, min(40000, kelvin)) / 100.0
+    import math
+    if t <= 66:
+        r = 255.0
+        g = 99.4708025861 * math.log(t) - 161.1195681661
+        b = 0.0 if t <= 19 else 138.5177312231 * math.log(t - 10) - 305.0447927307
+    else:
+        r = 329.698727446 * ((t - 60) ** -0.1332047592)
+        g = 288.1221695283 * ((t - 60) ** -0.0755148492)
+        b = 255.0
+    clamp = lambda v: max(0.1, min(1.0, v / 255.0))
+    return clamp(r), clamp(g), clamp(b)
+
+
+def hyprsunset(args):
+    state = os.path.join(STATE_DIR, "nightlight-temperature")
+    if len(args) < 1 or args[0] != "temperature":
+        unsupported(f"hyprsunset {' '.join(args)}")
+    if len(args) == 1:
+        try:
+            print(open(state).read().strip() or IDENTITY_TEMPERATURE)
+        except OSError:
+            print(IDENTITY_TEMPERATURE)
+        return
+    kelvin = int(args[1])
+    r, g, b = (1.0, 1.0, 1.0) if kelvin >= IDENTITY_TEMPERATURE else temperature_gamma(kelvin)
+    for out in re.findall(r"^(\S+) connected", run("xrandr", "--query"), re.M):
+        run("xrandr", "--output", out, "--gamma", f"{r:.3f}:{g:.3f}:{b:.3f}")
+    os.makedirs(STATE_DIR, exist_ok=True)
+    with open(state, "w") as f:
+        f.write(f"{kelvin}\n")
+    print("ok")
+
+
+# --- main --------------------------------------------------------------------
+
+def main(argv):
+    as_json = False
+    args = []
+    for a in argv:
+        if a in ("-j", "--json"):
+            as_json = True
+        elif a in ("-q", "--quiet", "-r", "--refresh"):
+            continue
+        else:
+            args.append(a)
+    if not args:
+        unsupported("no command")
+    cmd, rest = args[0], args[1:]
+
+    if cmd == "dispatch":
+        dispatch(" ".join(rest))
+    elif cmd in ("monitors", "workspaces", "clients", "activewindow", "activeworkspace"):
+        monitors, workspaces, clients, focused = collect(wm_state())
+        if cmd == "monitors":
+            emit(monitors, True)
+        elif cmd == "workspaces":
+            emit(workspaces, True)
+        elif cmd == "clients":
+            emit(clients, True)
+        elif cmd == "activewindow":
+            emit(focused or {}, True)
+        else:
+            active = next((m["activeWorkspace"] for m in monitors if m["focused"]), None) or {}
+            emit(next((w for w in workspaces if w["id"] == active.get("id")), active), True)
+    elif cmd == "getoption":
+        emit(getoption(rest[0] if rest else ""), True)
+    elif cmd == "devices":
+        emit(devices(), True)
+    elif cmd == "switchxkblayout":
+        switchxkblayout(rest[1] if len(rest) > 1 else "next")
+    elif cmd == "hyprsunset":
+        hyprsunset(rest)
+    elif cmd == "keyword" and rest and rest[0] == "monitor" and len(rest) > 1:
+        spec = rest[1].split(",")
+        if len(spec) > 1 and spec[1] == "disable":
+            run("xrandr", "--output", spec[0], "--off", check=True)
+        else:
+            run("xrandr", "--output", spec[0], "--auto", check=True)
+        print("ok")
+    elif cmd == "cursorpos":
+        loc = dict(re.findall(r"(\w+):(\d+)", run("xdotool", "getmouselocation")))
+        emit({"x": int(loc.get("x", 0)), "y": int(loc.get("y", 0))} if as_json else f"{loc.get('x', 0)}, {loc.get('y', 0)}", as_json)
+    elif cmd == "reload":
+        print("ok")
+    elif cmd == "version":
+        emit({"branch": "oah-x11", "tag": "oah", "flags": []} if as_json else "Hyprland-compatible hyprctl (OAH x11/bspwm)", as_json)
+    else:
+        unsupported(" ".join(shlex.quote(a) for a in args))
+
+
+if __name__ == "__main__":
+    try:
+        main(sys.argv[1:])
+    except (KeyError, ValueError, IndexError, RuntimeError) as e:
+        print(f"hyprctl (OAH x11): {e}", file=sys.stderr)
+        sys.exit(1)
