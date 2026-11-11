@@ -55,7 +55,6 @@ else
     fi
 fi
 
-eww reload 2>/dev/null || true
 
 echo "Theme '$THEME_NAME' successfully applied!"
 
@@ -80,5 +79,4 @@ fi
 "$(dirname "$0")/oah-theme-set-browser.sh"
 "$(dirname "$0")/oah-theme-set-xsettingsd.sh"
 "$(dirname "$0")/oah-theme-set-bspwm.sh"
-"$(dirname "$0")/oah-theme-set-rofi-dunst.sh"
 "$(dirname "$0")/oah-theme-set-signals.sh"
