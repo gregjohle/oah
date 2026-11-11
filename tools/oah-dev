@@ -1,0 +1,191 @@
+#!/bin/bash
+# Run the OAH desktop (bspwm + sxhkd + the Omarchy shell) in a nested X
+# server for development, fully isolated from the host session:
+#   - its own X display (Xephyr window, or Xvfb with --headless)
+#   - its own HOME, seeded the way an Omarchy install seeds a user
+#   - its own D-Bus session bus (dbus-run-session)
+#
+# Usage: oah-dev [options]
+#   --size WxH           screen size (default 1920x1080)
+#   --screenshot FILE    capture the screen after --after seconds, then exit
+#   --after SECONDS      delay before the screenshot (default 8)
+#   --headless           use Xvfb instead of a Xephyr window (needs xorg-server-xvfb)
+#   --fresh              reset the dev home before starting
+#   --theme NAME         theme to seed a fresh dev home with (default "Tokyo Night")
+#
+# Paths:
+#   runtime   ${XDG_CACHE_HOME:-~/.cache}/oah/dev-runtime (own OMARCHY_PATH tree,
+#             never the installed desktop's; override with OAH_RUNTIME)
+#   dev home  ${XDG_CACHE_HOME:-~/.cache}/oah/dev-home
+#   logs      ${XDG_STATE_HOME:-~/.local/state}/oah/dev/{xserver,bspwm,shell}.log
+
+set -euo pipefail
+
+# The dev session gets its own runtime tree. The default OAH_RUNTIME is the
+# installed desktop's OMARCHY_PATH, and rebuilding that from a checkout would
+# repoint a live OAH session at development code.
+export OAH_RUNTIME="${OAH_RUNTIME:-${XDG_CACHE_HOME:-$HOME/.cache}/oah/dev-runtime}"
+
+source "$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")/lib/common.sh"
+
+SELF=$(readlink -f -- "${BASH_SOURCE[0]}")
+# The inner half runs with HOME pointing at the dev home, so it must inherit
+# these from the outer half rather than recompute them.
+DEV_HOME="${DEV_HOME:-${XDG_CACHE_HOME:-$HOME/.cache}/oah/dev-home}"
+DEV_LOGS="${DEV_LOGS:-${XDG_STATE_HOME:-$HOME/.local/state}/oah/dev}"
+
+usage() { sed -n '2,20p' "$SELF" | sed 's/^# \{0,1\}//'; }
+
+# ---------------------------------------------------------------------------
+# Inner half: runs inside dbus-run-session with the isolated environment.
+# ---------------------------------------------------------------------------
+if [[ ${1:-} == "--inner" ]]; then
+  shift
+  screenshot=$1 after=$2
+
+  pids=()
+  stop_inner() {
+    local pid
+    for pid in "${pids[@]}"; do kill -TERM -- "-$pid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null || true; done
+  }
+  trap stop_inner EXIT
+
+  setsid bspwm -c "$OAH_ROOT/configs/bspwm/bspwmrc" >"$DEV_LOGS/bspwm.log" 2>&1 &
+  pids+=($!)
+
+  # Give bspwm a moment to own the root window before the shell maps panels.
+  for _ in {1..50}; do
+    xprop -root _NET_SUPPORTING_WM_CHECK >/dev/null 2>&1 && break
+    sleep 0.1
+  done
+
+  QS_NO_RELOAD_POPUP=1 setsid quickshell -n -p "$OMARCHY_PATH/shell" --no-color >"$DEV_LOGS/shell.log" 2>&1 &
+  pids+=($!)
+
+  if [[ -n $screenshot ]]; then
+    sleep "$after"
+    import -window root "$screenshot"
+    echo "Screenshot: $screenshot"
+    exit 0
+  fi
+
+  # Interactive: run until the X server goes away (Xephyr window closed).
+  while xprop -root _NET_SUPPORTING_WM_CHECK >/dev/null 2>&1; do sleep 1; done
+  exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# Outer half: argument parsing, dev home, X server.
+# ---------------------------------------------------------------------------
+size=1920x1080 screenshot="" after=8 headless=0 fresh=0 theme="Tokyo Night"
+while (( $# )); do
+  case "$1" in
+    --size) size=$2; shift 2 ;;
+    --screenshot) screenshot=$(readlink -f -- "$2"); shift 2 ;;
+    --after) after=$2; shift 2 ;;
+    --headless) headless=1; shift ;;
+    --fresh) fresh=1; shift ;;
+    --theme) theme=$2; shift 2 ;;
+    -h|--help) usage; exit 0 ;;
+    *) oah_die "unknown argument: $1 (see --help)" ;;
+  esac
+done
+
+[[ $size =~ ^[0-9]+x[0-9]+$ ]] || oah_die "--size must look like 1920x1080"
+[[ $after =~ ^[0-9]+([.][0-9]+)?$ ]] || oah_die "--after must be a number of seconds"
+
+for cmd in bspwm sxhkd quickshell dbus-run-session xprop import setsid; do
+  command -v "$cmd" >/dev/null 2>&1 || oah_die "missing dependency: $cmd"
+done
+if (( headless )); then
+  command -v Xvfb >/dev/null 2>&1 || oah_die "--headless needs Xvfb (xorg-server-xvfb)"
+else
+  command -v Xephyr >/dev/null 2>&1 || oah_die "missing dependency: Xephyr (xorg-server-xephyr)"
+  [[ -n ${DISPLAY:-} ]] || oah_die "Xephyr needs a host X display; use --headless"
+fi
+
+"$OAH_ROOT/tools/oah-runtime" >/dev/null
+export OMARCHY_PATH=$OAH_RUNTIME
+
+mkdir -p "$DEV_LOGS"
+
+# The isolated environment everything below runs in. XDG base dirs follow the
+# fake HOME; Wayland/Hyprland variables from a host session must not leak in.
+dev_env() {
+  env -u WAYLAND_DISPLAY -u HYPRLAND_INSTANCE_SIGNATURE -u SWAYSOCK \
+    -u XDG_CONFIG_HOME -u XDG_CACHE_HOME -u XDG_DATA_HOME -u XDG_STATE_HOME \
+    -u XDG_CURRENT_DESKTOP -u XDG_SESSION_DESKTOP -u DESKTOP_SESSION \
+    -u DBUS_SESSION_BUS_ADDRESS -u SESSION_MANAGER -u GNOME_KEYRING_CONTROL \
+    HOME="$DEV_HOME" \
+    OMARCHY_PATH="$OMARCHY_PATH" \
+    PATH="$OMARCHY_PATH/bin:$PATH" \
+    XDG_SESSION_TYPE=x11 \
+    XDG_CURRENT_DESKTOP=bspwm \
+    QT_QPA_PLATFORM=xcb \
+    OAH_ROOT="$OAH_ROOT" OAH_UPSTREAM="$OAH_UPSTREAM" OAH_RUNTIME="$OAH_RUNTIME" \
+    DEV_LOGS="$DEV_LOGS" \
+    "$@"
+}
+
+# Seed the dev home the way an Omarchy install seeds a new user: shipped
+# configs, the package fontconfig defaults, the default monospace font and
+# the default theme.
+seed_dev_home() {
+  if [[ -e $DEV_HOME && ! -f $DEV_HOME/.oah-dev-home ]]; then
+    oah_die "$DEV_HOME exists but isn't an OAH dev home; refusing to touch it"
+  fi
+  if (( fresh )) && [[ -f $DEV_HOME/.oah-dev-home ]]; then
+    rm -rf -- "$DEV_HOME"
+  fi
+  [[ -f $DEV_HOME/.oah-dev-home ]] && return 0
+
+  echo "Seeding dev home: $DEV_HOME"
+  mkdir -p "$DEV_HOME/.config/fontconfig/conf.d" "$DEV_HOME/.config/omarchy/themes"
+  cp -a "$OAH_UPSTREAM/config/." "$DEV_HOME/.config/"
+  cp "$OAH_UPSTREAM/default/fontconfig/conf.avail/50-omarchy.conf" "$DEV_HOME/.config/fontconfig/conf.d/"
+
+  # omarchy-font-set and omarchy-theme-set notify and restart a running
+  # session; there is none yet, so stub those side effects for seeding only.
+  # pkill/killall are stubbed too: font-set signals running terminals
+  # (`pkill -USR1 kitty`, `pkill -SIGUSR2 ghostty`), and from here those would
+  # reach the host's terminals, not anything in the dev session.
+  local stubs
+  stubs=$(mktemp -d)
+  for stub in omarchy-restart-shell omarchy-hook omarchy-notification-send pkill killall; do
+    printf '#!/bin/sh\nexit 0\n' >"$stubs/$stub"
+    chmod +x "$stubs/$stub"
+  done
+
+  dev_env PATH="$stubs:$OMARCHY_PATH/bin:$PATH" omarchy-font-set "JetBrainsMono Nerd Font" >/dev/null
+  dev_env PATH="$stubs:$OMARCHY_PATH/bin:$PATH" OMARCHY_THEME_HEADLESS=1 \
+    dbus-run-session -- omarchy-theme-set "$theme" >/dev/null
+  rm -rf -- "$stubs"
+
+  [[ -s $DEV_HOME/.local/state/omarchy/current/theme.name ]] || oah_die "seeding the theme failed"
+  touch "$DEV_HOME/.oah-dev-home"
+}
+seed_dev_home
+
+# Pick a free display number.
+display=""
+for n in {90..119}; do
+  if [[ ! -e /tmp/.X11-unix/X$n && ! -e /tmp/.X$n-lock ]]; then display=":$n"; break; fi
+done
+[[ -n $display ]] || oah_die "no free X display in :90-:119"
+
+if (( headless )); then
+  Xvfb "$display" -screen 0 "${size}x24" -nolisten tcp >"$DEV_LOGS/xserver.log" 2>&1 &
+else
+  Xephyr "$display" -screen "$size" -resizeable -nolisten tcp -title "OAH dev ($display)" >"$DEV_LOGS/xserver.log" 2>&1 &
+fi
+xserver=$!
+trap 'kill "$xserver" 2>/dev/null || true; wait "$xserver" 2>/dev/null || true' EXIT
+
+for _ in {1..50}; do
+  [[ -e /tmp/.X11-unix/X${display#:} ]] && break
+  kill -0 "$xserver" 2>/dev/null || oah_die "X server failed to start (see $DEV_LOGS/xserver.log)"
+  sleep 0.1
+done
+
+echo "OAH dev session on $display (logs: $DEV_LOGS)"
+dev_env DISPLAY="$display" dbus-run-session -- "$SELF" --inner "$screenshot" "$after"

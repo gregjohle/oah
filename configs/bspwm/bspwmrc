@@ -4,9 +4,19 @@
 # BSPWM Configuration
 # ============================================================================
 
-# Terminate running instances of sxhkd (key daemon) before starting a new one
-killall -q -w sxhkd
-sxhkd -c "$(dirname "$0")/../sxhkd/sxhkdrc" &
+# (Re)start the key daemon for this display only. bspwmrc reruns on every
+# `bspc wm -r`, so replace the sxhkd this file started earlier, tracked by a
+# pidfile per display, and never touch sxhkd instances on other displays.
+sxhkd_pidfile="${XDG_RUNTIME_DIR:-/tmp}/oah-sxhkd-${DISPLAY//[^0-9.]/}.pid"
+if [[ -f $sxhkd_pidfile ]]; then
+  old_pid=$(cat "$sxhkd_pidfile")
+  if [[ $old_pid =~ ^[0-9]+$ && $(ps -o comm= -p "$old_pid" 2>/dev/null) == sxhkd ]]; then
+    kill "$old_pid" 2>/dev/null
+    while kill -0 "$old_pid" 2>/dev/null; do sleep 0.05; done
+  fi
+fi
+sxhkd -c "$(dirname "$(readlink -f "$0")")/../sxhkd/sxhkdrc" &
+echo $! >"$sxhkd_pidfile"
 
 # ============================================================================
 # Monitors & Workspaces
