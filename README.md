@@ -33,4 +33,4 @@ tools/oah-dev --headless --screenshot shot.png # same, without a window (Xvfb)
 tools/oah-dev --fresh --theme "Gruvbox"        # reset the dev home with another theme
 ```
 
-The dev session is isolated from your real desktop: its own X display, its own `HOME` (`~/.cache/oah/dev-home`, seeded like a fresh Omarchy install) and its own D-Bus session. Logs go to `~/.local/state/oah/dev/`.
+The dev session is isolated from your real desktop: its own X display, its own `HOME` (`~/.cache/oah/dev-home`, seeded like a fresh Omarchy install), its own D-Bus session and its own runtime tree (`~/.cache/oah/dev-runtime`, so it never repoints an installed OAH desktop at checkout code). Logs go to `~/.local/state/oah/dev/`.
