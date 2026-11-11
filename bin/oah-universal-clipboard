@@ -1,0 +1,31 @@
+#!/bin/bash
+# OAH(x11): Omarchy's universal clipboard keys (Super+C/V/X/A) on X11.
+# Upstream (default/hypr/bindings/clipboard.lua) sends Ctrl+<key> to the
+# focused window, or Ctrl+Shift+<key> for copy/paste when it's a terminal,
+# using the terminal class list from default/hypr/apps/terminals.lua.
+#
+# Usage: oah-universal-clipboard copy|paste|cut|select-all
+
+set -uo pipefail
+
+case "${1:-}" in
+  copy) key=c terminal_key=ctrl+shift+c ;;
+  paste) key=v terminal_key=ctrl+shift+v ;;
+  cut) key=x terminal_key=ctrl+x ;;
+  select-all) key=a terminal_key=ctrl+a ;;
+  *) echo "Usage: oah-universal-clipboard copy|paste|cut|select-all" >&2; exit 1 ;;
+esac
+
+terminals='^(Alacritty|kitty|com\.mitchellh\.ghostty|foot|org\.codeberg\.dnkl\.foot|wezterm|org\.omarchy\..*|TUI\..*)$'
+
+window=$(xdotool getactivewindow 2>/dev/null) || exit 0
+class=$(xprop -id "$window" WM_CLASS 2>/dev/null | sed -n 's/.*= "[^"]*", "\(.*\)"$/\1/p')
+
+chord=ctrl+$key
+if [[ -n $class ]] && grep -qE "$terminals" <<<"$class"; then
+  chord=$terminal_key
+fi
+
+# --clearmodifiers releases the physically held Super for the synthetic chord,
+# so the app sees Ctrl+C rather than Super+Ctrl+C.
+xdotool key --clearmodifiers --window "$window" "$chord"

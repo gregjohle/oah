@@ -1,0 +1,12 @@
+#!/bin/bash
+# OAH(x11): stand-in for uwsm's `uwsm-app`. Upstream launches apps with
+# `uwsm-app -- <command>` so Hyprland sessions run them as systemd units; an
+# X11 session has no uwsm, so this runs the command detached from the caller.
+#
+# Usage: uwsm-app [options] -- <command> [args...]
+
+while (( $# )) && [[ $1 != -- ]]; do shift; done
+[[ ${1:-} == -- ]] && shift
+(( $# )) || { echo "Usage: uwsm-app -- <command> [args...]" >&2; exit 1; }
+
+exec setsid -f "$@" >/dev/null 2>&1 </dev/null

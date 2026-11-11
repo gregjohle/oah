@@ -1,0 +1,206 @@
+#!/usr/bin/env python3
+"""Generate OAH's sxhkd keybindings from upstream Omarchy's Hyprland bindings.
+
+Runs upstream's binding modules (default/hypr/bindings/*.lua) through
+tools/lib/collect-bindings.lua, which records every o.bind() call, and writes:
+
+  configs/sxhkd/bindings.tsv   one binding per row: n, chord, description, kind, action
+  configs/sxhkd/sxhkdrc        chord -> `oah-bind <n>` (descriptions as comments)
+
+sxhkd runs `oah-bind`, which looks the action up in the table. That keeps
+Hyprland dispatcher calls (full of braces, which sxhkd treats as its own
+syntax) out of sxhkdrc, and gives `hyprctl binds` one table to answer from.
+
+Translation:
+  command bindings            run as-is
+  hl.dsp.* dispatchers        `hyprctl dispatch <call>` (OAH's hyprctl stand-in)
+  o.workspaces.* helpers      the equivalent dispatcher
+  shell global shortcuts      the command upstream falls back to without them
+  universal clipboard keys    oah-universal-clipboard (xdotool)
+Bindings with no ready X11 equivalent are listed at the end of sxhkdrc and
+left unbound (see the Deferred list on the project board).
+
+Re-run on every upstream release. Usage: oah-gen-keybindings
+"""
+
+import os
+import re
+import subprocess
+import sys
+import tempfile
+
+ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+
+
+def sh(cmd, **kw):
+    return subprocess.run(cmd, capture_output=True, text=True, check=True, **kw).stdout
+
+
+def upstream_path():
+    env = dict(os.environ)
+    out = sh(["bash", "-c", 'source "$1/tools/lib/common.sh" && oah_require_upstream && printf "%s\\n%s" "$OAH_UPSTREAM" "$OAH_PIN"', "_", ROOT], env=env)
+    path, pin = out.splitlines()
+    return path, pin
+
+
+# --- keys ----------------------------------------------------------------------
+
+MODS = {"SUPER": "super", "SHIFT": "shift", "CTRL": "ctrl", "CONTROL": "ctrl", "ALT": "alt"}
+NAMES = {
+    "RETURN": "Return", "ENTER": "Return", "SPACE": "space", "ESCAPE": "Escape", "BACKSPACE": "BackSpace",
+    "TAB": "Tab", "LEFT": "Left", "RIGHT": "Right", "UP": "Up", "DOWN": "Down", "DELETE": "Delete",
+    "HOME": "Home", "END": "End", "PRINT": "Print", "PERIOD": "period", "COMMA": "comma", "SLASH": "slash",
+    "MINUS": "minus", "EQUAL": "equal", "GRAVE": "grave",
+}
+# Hyprland's code:N is an evdev+8 keycode; these are the ones upstream binds (US layout).
+KEYCODES = {10: "1", 11: "2", 12: "3", 13: "4", 14: "5", 15: "6", 16: "7", 17: "8", 18: "9", 19: "0",
+            20: "minus", 21: "equal", 34: "bracketleft", 35: "bracketright"}
+MOUSE = {"mouse_down": "button5", "mouse_up": "button4"}
+
+
+def chord(keys, release):
+    """Hyprland "SUPER + SHIFT + code:10" -> sxhkd "super + shift + 1", or (None, reason)."""
+    if keys.startswith("switch:"):
+        return None, "lid/switch event (handled by the lid port, not a key)"
+    parts = [p.strip() for p in keys.split("+")]
+    mods, key = parts[:-1], parts[-1]
+    out = []
+    for m in mods:
+        if m.upper() not in MODS:
+            return None, f"unknown modifier {m}"
+        out.append(MODS[m.upper()])
+    if key.startswith("mouse:"):
+        return None, "mouse drag: bspwmrc sets bspwm pointer_action1/3 (move/resize) on SUPER"
+    if key in MOUSE:
+        k = MOUSE[key]
+    elif key.startswith("code:"):
+        code = int(key[5:])
+        if code not in KEYCODES:
+            return None, f"keycode {code} has no known keysym"
+        k = KEYCODES[code]
+    elif key.upper() in NAMES:
+        k = NAMES[key.upper()]
+    elif key.startswith("XF86") or re.fullmatch(r"F\d+", key) or len(key) > 1 and key[0].isupper() and key[1:].islower():
+        k = key
+    else:
+        k = key.lower()
+    return " + ".join(out + [("@" if release else "") + k]), None
+
+
+# --- actions -------------------------------------------------------------------
+
+def quote(s):
+    return "'" + s.replace("'", "'\\''") + "'"
+
+
+def global_command(name):
+    m = re.fullmatch(r"omarchy:(\w+)\.(.+)", name)
+    if not m:
+        return None
+    kind, target = m.groups()
+    if kind == "menu":
+        return f"omarchy-menu toggle {quote(target)}"
+    if kind == "panel":
+        return f"omarchy-shell shell toggle {quote(target)}"
+    if kind == "audio":
+        return f"omarchy-audio-output-volume {quote(target)}"
+    if kind == "brightness":
+        return "omarchy-brightness-display " + ("+5%" if target == "raise" else "5%-")
+    if kind == "ipc":
+        t, method = target.split(".", 1)
+        return f"omarchy-shell {quote(t)} {quote(method)}"
+    return None
+
+
+def expr_action(expr):
+    m = re.fullmatch(r"o\.workspaces\.(\w+)\((.*)\)", expr)
+    if not m:
+        return None
+    fn, args = m.group(1), [a.strip().strip('"') for a in m.group(2).split(",") if a.strip()]
+    if fn == "focus":
+        return "dsp", f'hl.dsp.focus({{ workspace = "{args[0]}" }})'
+    if fn == "move_window":
+        follow = "false" if len(args) > 1 and args[1] == "false" else "true"
+        return "dsp", f'hl.dsp.window.move({{ workspace = "{args[0]}", follow = {follow} }})'
+    if fn == "move_to_monitor":
+        return "dsp", f'hl.dsp.workspace.move({{ monitor = "{args[0]}" }})'
+    if fn == "move_window_to_monitor":
+        direction = {"l": "west", "r": "east", "u": "north", "d": "south"}.get(args[0], args[0])
+        return "cmd", f"bspc node -m {direction} --follow"
+    return None
+
+
+FUNCTIONS = {
+    "Select all": "oah-universal-clipboard select-all",
+    "Universal copy": "oah-universal-clipboard copy",
+    "Universal paste": "oah-universal-clipboard paste",
+    "Universal cut": "oah-universal-clipboard cut",
+}
+
+
+def translate(kind, action, description):
+    if kind == "cmd":
+        return ("cmd", action), None
+    if kind == "dsp":
+        return ("dsp", action), None
+    if kind == "global":
+        c = global_command(action)
+        return (("cmd", c), None) if c else (None, f"global shortcut {action}")
+    if kind == "expr":
+        t = expr_action(action)
+        return (t, None) if t else (None, f"helper {action}")
+    if description in FUNCTIONS:
+        return ("cmd", FUNCTIONS[description]), None
+    return None, "Lua function with no X11 equivalent yet"
+
+
+# --- main ----------------------------------------------------------------------
+
+def main():
+    upstream, pin = upstream_path()
+    with tempfile.TemporaryDirectory() as home:
+        # A clean HOME so the user's own Omarchy state can't change the defaults.
+        env = dict(os.environ, HOME=home, OMARCHY_PATH=upstream)
+        lua = next((l for l in ("lua5.4", "lua", "luajit") if subprocess.run(["sh", "-c", f"command -v {l}"], capture_output=True).returncode == 0), None)
+        if not lua:
+            sys.exit("oah-gen-keybindings: needs lua (lua5.4)")
+        raw = sh([lua, os.path.join(ROOT, "tools", "lib", "collect-bindings.lua"), upstream], env=env)
+
+    rows, skipped, chords = [], [], {}
+    for line in raw.splitlines():
+        keys, description, kind, action, flags = (line.split("\t") + [""] * 5)[:5]
+        release = "release" in flags.split(",")
+        c, why = chord(keys, release)
+        if c is None:
+            skipped.append((keys, description, why))
+            continue
+        t, why = translate(kind, action, description)
+        if t is None:
+            skipped.append((keys, description, why))
+            continue
+        n = len(rows) + 1
+        rows.append((n, c, description, t[0], t[1]))
+        chords.setdefault(c, []).append(n)
+
+    sxhkd_dir = os.path.join(ROOT, "configs", "sxhkd")
+    with open(os.path.join(sxhkd_dir, "bindings.tsv"), "w") as f:
+        f.write(f"# Generated by tools/oah-gen-keybindings from Omarchy {pin}. Do not edit.\n")
+        for r in rows:
+            f.write("\t".join(str(x) for x in r) + "\n")
+
+    with open(os.path.join(sxhkd_dir, "sxhkdrc"), "w") as f:
+        f.write(f"# Generated by tools/oah-gen-keybindings from Omarchy {pin}'s\n")
+        f.write("# default/hypr/bindings/*.lua. Do not edit; re-run the generator.\n")
+        f.write("# Each chord runs `oah-bind <n>`, which looks up row n of bindings.tsv.\n\n")
+        for c, ns in chords.items():
+            descs = "; ".join(dict.fromkeys(rows[n - 1][2] for n in ns))
+            f.write(f"# {descs}\n{c}\n\toah-bind {' '.join(map(str, ns))}\n\n")
+        f.write("# Not bound on X11 (no ready equivalent, or handled elsewhere):\n")
+        for keys, description, why in skipped:
+            f.write(f"#   {keys:<34} {description or '-':<40} {why}\n")
+
+    print(f"oah-gen-keybindings: {len(rows)} bindings on {len(chords)} chords, {len(skipped)} not bound (Omarchy {pin})")
+
+
+if __name__ == "__main__":
+    main()
