@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Omarchy At Home
+Comment=Omarchy's desktop on X11 (bspwm)
+# The installer replaces @OAH_ROOT@ with the absolute path of the OAH checkout
+# and installs this file to /usr/share/xsessions/.
+Exec=@OAH_ROOT@/scripts/oah-session.sh
+TryExec=@OAH_ROOT@/scripts/oah-session.sh
+Type=XSession
+DesktopNames=bspwm
