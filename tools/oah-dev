@@ -59,6 +59,18 @@ if [[ ${1:-} == "--inner" ]]; then
     sleep 0.1
   done
 
+  # Keeps the shell's panels in their layers (wallpaper below, bar above),
+  # which X11 window managers don't do for unmanaged dock windows.
+  setsid oah-x11-stacking >"$DEV_LOGS/stacking.log" 2>&1 &
+  pids+=($!)
+
+  # The shell's panels are mostly transparent windows and need a compositor.
+  # Nested X servers have no usable GL, so the dev session uses picom's
+  # xrender backend; the look comes from the same config a real session uses.
+  setsid picom --config "$OAH_ROOT/configs/picom/picom.conf" --backend xrender --no-vsync \
+    >"$DEV_LOGS/picom.log" 2>&1 &
+  pids+=($!)
+
   QS_NO_RELOAD_POPUP=1 setsid quickshell -n -p "$OMARCHY_PATH/shell" --no-color >"$DEV_LOGS/shell.log" 2>&1 &
   pids+=($!)
 
@@ -94,9 +106,12 @@ done
 [[ $size =~ ^[0-9]+x[0-9]+$ ]] || oah_die "--size must look like 1920x1080"
 [[ $after =~ ^[0-9]+([.][0-9]+)?$ ]] || oah_die "--after must be a number of seconds"
 
-for cmd in bspwm sxhkd quickshell dbus-run-session xprop import setsid; do
+for cmd in bspwm sxhkd picom quickshell dbus-run-session xprop import setsid python3; do
   command -v "$cmd" >/dev/null 2>&1 || oah_die "missing dependency: $cmd"
 done
+# The stacking helper needs python-xlib; without it the session would start
+# and silently leave the wallpaper over the bar.
+python3 -c 'import Xlib' 2>/dev/null || oah_die "missing dependency: python-xlib (python3 module Xlib)"
 if (( headless )); then
   command -v Xvfb >/dev/null 2>&1 || oah_die "--headless needs Xvfb (xorg-server-xvfb)"
 else
