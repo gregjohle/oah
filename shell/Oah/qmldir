@@ -1,0 +1,2 @@
+module qs.Oah
+singleton Compositor 1.0 Compositor.qml

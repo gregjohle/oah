@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import qs.Oah // OAH(x11): was Hyprland IPC, now bspwm-backed
 import Quickshell.Io
 import Quickshell.Wayland
 import "IdleModel.js" as IdleModel
@@ -299,7 +300,7 @@ Item {
   }
 
   Connections {
-    target: Hyprland
+    target: Compositor // OAH(x11): was Hyprland
     function onRawEvent(event) { root.handleHyprlandEvent(event) }
   }
 

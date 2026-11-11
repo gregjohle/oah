@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import qs.Oah // OAH(x11): was Hyprland IPC, now bspwm-backed
 import Quickshell.Io
 import "RemoteSessionModel.js" as RemoteSessionModel
 
@@ -42,7 +43,7 @@ Item {
   // whether it was gliff or another screencopy client, and a short debounce
   // folds the event bursts Hyprland sends around one transition into one probe.
   Connections {
-    target: Hyprland
+    target: Compositor // OAH(x11): was Hyprland
     function onRawEvent(event) {
       if (RemoteSessionModel.isCaptureEvent(event ? event.name : "")) eventDebounce.restart()
     }

@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import qs.Oah // OAH(x11): was Hyprland IPC, now bspwm-backed
 import Quickshell.Io
 import qs.Ui
 import qs.Commons
@@ -112,7 +113,7 @@ BarWidget {
   Component.onCompleted: refresh()
 
   Connections {
-    target: Hyprland
+    target: Compositor // OAH(x11): was Hyprland
     function onRawEvent(event) {
       if (!event || !event.name) return
       var name = String(event.name)
