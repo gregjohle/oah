@@ -64,7 +64,7 @@ KEYCODES = {10: "1", 11: "2", 12: "3", 13: "4", 14: "5", 15: "6", 16: "7", 17: "
 MOUSE = {"mouse_down": "button5", "mouse_up": "button4"}
 
 
-def chord(keys, release):
+def chord(keys, release, ignore_mods=False):
     """Hyprland "SUPER + SHIFT + code:10" -> sxhkd "super + shift + 1", or (None, reason)."""
     if keys.startswith("switch:"):
         return None, "lid/switch event (handled by the lid port, not a key)"
@@ -88,8 +88,17 @@ def chord(keys, release):
         k = NAMES[key.upper()]
     elif key.startswith("XF86") or re.fullmatch(r"F\d+", key) or len(key) > 1 and key[0].isupper() and key[1:].islower():
         k = key
-    else:
+    elif len(key) == 1:
         k = key.lower()
+    else:
+        # Keysym names are case-sensitive (Alt_R, semicolon, BackSpace):
+        # keep upstream's spelling.
+        k = key
+    if ignore_mods:
+        # Upstream's ignore_mods: fire whatever modifiers are held. Needed for
+        # hold bindings on a modifier key itself (dictation on Right Alt),
+        # whose release arrives with that modifier still set.
+        out = ["any"]
     return " + ".join(out + [("@" if release else "") + k]), None
 
 
@@ -195,7 +204,7 @@ def main():
         # holds the key grab until release, so they must fire on release or
         # the synthetic chord goes to sxhkd instead of the app.
         release = "release" in flags or (kind == "function" and description in FUNCTIONS)
-        c, why = chord(keys, release)
+        c, why = chord(keys, release, "ignore_mods" in flags)
         if c is None:
             skipped.append((keys, description, why))
             continue

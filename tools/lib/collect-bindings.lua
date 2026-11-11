@@ -8,7 +8,7 @@
 --          global    action is a Hyprland global shortcut name
 --          expr      action is an upstream Lua helper call (e.g. o.workspaces.focus(3))
 --          function  a Lua function with no command equivalent
---   flags  comma-separated: release, locked, repeating, mouse
+--   flags  comma-separated: release, locked, repeating, mouse, ignore_mods
 --
 -- Usage: OMARCHY_PATH=<upstream> lua collect-bindings.lua <upstream>
 -- The modules load in the order upstream's default/hypr/omarchy.lua uses.
@@ -106,7 +106,7 @@ for _, r in ipairs(records) do
   end
 
   local flags = {}
-  for _, f in ipairs({ "release", "locked", "repeating", "mouse" }) do
+  for _, f in ipairs({ "release", "locked", "repeating", "mouse", "ignore_mods" }) do
     if r.opts[f] then flags[#flags + 1] = f end
   end
 

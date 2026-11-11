@@ -16,12 +16,12 @@ Usage: oah-bind [-t TABLE] N...   (default table: configs/sxhkd/bindings.tsv)
 
 import hashlib
 import os
+import re
 import subprocess
 import sys
 import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-RELEASE_SETTLE = 0.12  # seconds the key must stay up to count as released
 LOCK_DIR = os.path.join(os.environ.get("XDG_RUNTIME_DIR") or "/tmp", f"oah-bind-{os.getuid()}")
 
 
@@ -37,20 +37,48 @@ def rows(table):
     return found
 
 
+def string_to_keysym(name):
+    """libX11's XStringToKeysym: knows every keysym name, XF86 ones included
+    (python-xlib's table doesn't load those by default)."""
+    import ctypes
+    x11 = ctypes.CDLL("libX11.so.6")
+    x11.XStringToKeysym.restype = ctypes.c_ulong
+    x11.XStringToKeysym.argtypes = [ctypes.c_char_p]
+    return x11.XStringToKeysym(name.encode())
+
+
 def key_keycode(chord):
     """The keycode of a chord's main key ("super + Tab" -> Tab's), or None."""
     key = chord.split("+")[-1].strip().lstrip("@~")
     if key.startswith("button"):
         return None
     try:
-        from Xlib import XK, display
+        from Xlib import display
+        sym = string_to_keysym(key)
+        if not sym:
+            return None
         d = display.Display()
-        sym = XK.string_to_keysym(key)
-        code = d.keysym_to_keycode(sym) if sym else 0
+        code = d.keysym_to_keycode(sym)
         d.close()
         return code or None
     except Exception:
         return None
+
+
+def release_settle():
+    """How long a key must stay up to count as released, from the X server's
+    autorepeat rate (repeats send release/press pairs), so a held key isn't
+    mistaken for a release while fast separate taps still count."""
+    try:
+        out = subprocess.run(["xset", "q"], capture_output=True, text=True).stdout
+        rate = float(re.search(r"repeat rate:\s*(\d+)", out).group(1))
+        if rate > 0:
+            # 2.5 intervals bridges the brief "up" readings between autorepeat
+            # events; capped so taps ~80 ms apart still count separately.
+            return min(0.07, max(0.05, 2.5 / rate))
+    except (OSError, AttributeError, ValueError):
+        pass
+    return 0.06
 
 
 def key_down(keycode):
@@ -87,6 +115,7 @@ def watch_release(lock, keycode):
         # Autorepeat sends release/press pairs, so the key can read as up for
         # an instant while it's held; only a key that stays up for longer
         # than a few repeat intervals has really been released.
+        settle = release_settle()
         deadline = time.monotonic() + 60
         up_since = None
         while time.monotonic() < deadline:
@@ -94,7 +123,7 @@ def watch_release(lock, keycode):
                 up_since = None
             elif up_since is None:
                 up_since = time.monotonic()
-            elif time.monotonic() - up_since >= RELEASE_SETTLE:
+            elif time.monotonic() - up_since >= settle:
                 break
             time.sleep(0.02)
     finally:
