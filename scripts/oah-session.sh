@@ -96,6 +96,9 @@ start_picom() {
   children+=("$pid")
 }
 start_picom
+# GTK apps on X11 take their theme from an XSETTINGS manager, not gsettings.
+oah-xsettings-sync
+command -v xsettingsd >/dev/null && start xsettingsd xsettingsd
 # Upstream's shell supervisor: relaunches the shell if it dies.
 start shell omarchy-launch-shell
 

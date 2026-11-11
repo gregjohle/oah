@@ -1,0 +1,45 @@
+#!/bin/bash
+# OAH(x11): mirror the GNOME interface settings upstream's theme commands set
+# (gsettings: gtk-theme, icon-theme, color-scheme, cursor) into xsettingsd.
+#
+# On Wayland, GTK apps read gsettings directly. On X11 they read the
+# XSETTINGS protocol instead, which needs a running XSETTINGS manager; OAH
+# uses xsettingsd, and this keeps its config in step and reloads it.
+#
+# Usage: oah-xsettings-sync
+
+set -uo pipefail
+
+command -v gsettings >/dev/null || exit 0
+
+get() {
+  gsettings get org.gnome.desktop.interface "$1" 2>/dev/null | sed "s/^'//; s/'$//"
+}
+
+conf="${XDG_CONFIG_HOME:-$HOME/.config}/xsettingsd/xsettingsd.conf"
+mkdir -p "$(dirname "$conf")"
+
+gtk_theme=$(get gtk-theme)
+icon_theme=$(get icon-theme)
+cursor_theme=$(get cursor-theme)
+cursor_size=$(get cursor-size)
+prefer_dark=0
+[[ $(get color-scheme) == prefer-dark ]] && prefer_dark=1
+
+{
+  echo "# Written by oah-xsettings-sync from gsettings; edits are overwritten."
+  [[ -n $gtk_theme ]] && echo "Net/ThemeName \"$gtk_theme\""
+  [[ -n $icon_theme ]] && echo "Net/IconThemeName \"$icon_theme\""
+  [[ -n $cursor_theme ]] && echo "Gtk/CursorThemeName \"$cursor_theme\""
+  [[ $cursor_size =~ ^[0-9]+$ ]] && echo "Gtk/CursorThemeSize $cursor_size"
+  echo "Gtk/ApplicationPreferDarkTheme $prefer_dark"
+} >"$conf"
+
+# xsettingsd re-reads its config on SIGHUP; only signal this session's.
+if [[ -n ${DISPLAY:-} ]]; then
+  for pid in $(pgrep -u "$UID" -x xsettingsd); do
+    [[ $(tr '\0' '\n' </proc/"$pid"/environ 2>/dev/null | sed -n 's/^DISPLAY=//p') == "$DISPLAY" ]] &&
+      kill -HUP "$pid"
+  done
+fi
+exit 0

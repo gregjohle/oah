@@ -1,0 +1,13 @@
+#!/bin/bash
+# OAH(x11): upstream's omarchy-theme-set-gnome, then the same settings for X11
+# GTK apps via xsettingsd (oah-xsettings-sync). Upstream's command runs
+# unchanged; this only adds the X11 step after it.
+
+oah_root=$(cd -- "$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")/.." && pwd -P)
+# shellcheck source=../tools/lib/common.sh
+source "$oah_root/tools/lib/common.sh"
+
+"$OAH_UPSTREAM/bin/omarchy-theme-set-gnome" "$@"
+status=$?
+oah-xsettings-sync
+exit "$status"
