@@ -81,14 +81,9 @@ def release_settle():
     return 0.06
 
 
-def key_down(keycode):
-    from Xlib import display
-    d = display.Display()
-    try:
-        keymap = d.query_keymap()
-        return bool(keymap[keycode // 8] & (1 << (keycode % 8)))
-    finally:
-        d.close()
+def key_down(conn, keycode):
+    keymap = conn.query_keymap()
+    return bool(keymap[keycode // 8] & (1 << (keycode % 8)))
 
 
 def held_elsewhere(lock):
@@ -115,17 +110,22 @@ def watch_release(lock, keycode):
         # Autorepeat sends release/press pairs, so the key can read as up for
         # an instant while it's held; only a key that stays up for longer
         # than a few repeat intervals has really been released.
+        # One X connection for the whole watch: opening one per poll made a
+        # release take ~100 ms to notice, swallowing fast taps (Super held,
+        # Tab tapped).
+        from Xlib import display
+        conn = display.Display()
         settle = release_settle()
         deadline = time.monotonic() + 60
         up_since = None
         while time.monotonic() < deadline:
-            if key_down(keycode):
+            if key_down(conn, keycode):
                 up_since = None
             elif up_since is None:
                 up_since = time.monotonic()
             elif time.monotonic() - up_since >= settle:
                 break
-            time.sleep(0.02)
+            time.sleep(0.01)
     finally:
         try:
             os.unlink(lock)
