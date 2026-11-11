@@ -109,6 +109,9 @@ done
 for cmd in bspwm sxhkd picom quickshell dbus-run-session xprop import setsid python3; do
   command -v "$cmd" >/dev/null 2>&1 || oah_die "missing dependency: $cmd"
 done
+# The stacking helper needs python-xlib; without it the session would start
+# and silently leave the wallpaper over the bar.
+python3 -c 'import Xlib' 2>/dev/null || oah_die "missing dependency: python-xlib (python3 module Xlib)"
 if (( headless )); then
   command -v Xvfb >/dev/null 2>&1 || oah_die "--headless needs Xvfb (xorg-server-xvfb)"
 else

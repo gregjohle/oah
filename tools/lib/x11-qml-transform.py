@@ -41,39 +41,77 @@ def rewrite(prop: str, expr: str) -> str | None:
     return f"focusable: {value}"
 
 
+# A property value continues onto the next line when the current text ends
+# mid-expression or the next line starts with an operator.
+CONTINUES_AFTER = ("?", ":", "&&", "||", "+", "-", "*", "/", "(", ",", "!", "=")
+CONTINUES_BEFORE = ("?", ":", "&&", "||", "+", "-", "*", "/", ")", ".")
+
+
+def strip_comment(code: str) -> str:
+    return re.sub(r"\s*//.*$", "", code)
+
+
 def transform(text: str) -> tuple[str, int]:
-    out, changed = [], 0
-    for line in text.splitlines(keepends=True):
+    lines = text.splitlines(keepends=True)
+    out, changed, i = [], 0, 0
+    while i < len(lines):
+        line = lines[i]
         body = line.rstrip("\n")
         m = LINE.match(body)
         if not m or MARK in body:
             out.append(line)
+            i += 1
             continue
-        expr = m["expr"]
-        # A trailing // comment isn't part of the expression.
-        expr = re.sub(r"\s*//.*$", "", expr)
+
+        # Gather a multi-line expression (e.g. a ternary spread over lines)
+        # so the whole value is rewritten, not just its first line.
+        parts = [strip_comment(m["expr"]).strip()]
+        j = i + 1
+        while j < len(lines):
+            nxt = strip_comment(lines[j].strip())
+            depth = sum(p.count("(") - p.count(")") for p in parts)
+            if depth > 0 or parts[-1].endswith(CONTINUES_AFTER) or nxt.startswith(CONTINUES_BEFORE):
+                parts.append(nxt)
+                j += 1
+                continue
+            break
+        expr = " ".join(p for p in parts if p)
+        if sum(expr.count(c) for c in "(") != sum(expr.count(c) for c in ")"):
+            raise ValueError(f"line {i + 1}: can't find the end of WlrLayershell.{m['prop']}'s expression")
+
         original = f"WlrLayershell.{m['prop']}: {expr}"
         new = rewrite(m["prop"], expr)
-        newline = "\n" if line.endswith("\n") else ""
+        last = lines[j - 1]
+        newline = "\n" if last.endswith("\n") else ""
         if new is None:
             out.append(f"{m['indent']}{MARK}{original}{newline}")
         else:
             out.append(f"{m['indent']}{new} {MARK}{original}{newline}")
         changed += 1
+        i = j
     return "".join(out), changed
 
 
 def main(paths: list[str]) -> int:
-    total = files = 0
+    # Transform everything in memory first, so a file the rules can't handle
+    # leaves the whole tree untouched rather than half rewritten.
+    results = []
     for path in paths:
         with open(path, encoding="utf-8") as f:
             text = f.read()
-        new, changed = transform(text)
+        try:
+            new, changed = transform(text)
+        except ValueError as e:
+            print(f"x11-qml-transform: {path}: {e}", file=sys.stderr)
+            return 1
         if changed:
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(new)
-            total += changed
-            files += 1
+            results.append((path, new, changed))
+    total = files = 0
+    for path, new, changed in results:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(new)
+        total += changed
+        files += 1
     leftover = []
     for path in paths:
         with open(path, encoding="utf-8") as f:

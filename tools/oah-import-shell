@@ -25,7 +25,10 @@ esac
 oah_require_upstream
 [[ ! -e $dest ]] || oah_die "$dest already exists; the import only creates a fresh tree (upgrades merge into an existing one)"
 
-cp -a "$OAH_UPSTREAM/shell" "$dest"
+# From the release tag itself, not the checkout's working tree: local edits or
+# generated files (e.g. __pycache__) in the upstream checkout must not leak in.
+mkdir -p "$dest"
+git -C "$OAH_UPSTREAM" archive "$OAH_PIN" shell | tar -x -C "$dest" --strip-components=1
 printf '%s\n' "$OAH_PIN" >"$dest/.oah-upstream"
 
 mapfile -d '' -t qml < <(find "$dest" -name '*.qml' -print0)

@@ -82,12 +82,14 @@ def main() -> int:
     if once:
         return 0
 
+    relevant = (X.MapNotify, X.ConfigureNotify, X.CirculateNotify, X.ReparentNotify)
     while True:
-        event = d.next_event()
-        # Coalesce a burst of map/restack events into one check.
+        # Coalesce a burst of events into one check, but look at every event
+        # in it: a MapNotify behind a CreateNotify must still trigger it.
+        wanted = d.next_event().type in relevant
         while d.pending_events():
-            d.next_event()
-        if event.type in (X.MapNotify, X.ConfigureNotify, X.CirculateNotify, X.ReparentNotify):
+            wanted = d.next_event().type in relevant or wanted
+        if wanted:
             enforce()
 
 

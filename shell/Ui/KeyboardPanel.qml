@@ -139,9 +139,7 @@ PanelWindow {
   // focus when the previously focused application has constrained the pointer.
   // The brief prime covers both cases; OnDemand then releases compositor-wide
   // pointer hit-testing so clicks can reach the dismissal windows below.
-  focusable: (open) != WlrKeyboardFocus.None // OAH(x11): was WlrLayershell.keyboardFocus: open
-    ? (focusPrimed ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.Exclusive)
-    : WlrKeyboardFocus.None
+  focusable: (open ? (focusPrimed ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.Exclusive) : WlrKeyboardFocus.None) != WlrKeyboardFocus.None // OAH(x11): was WlrLayershell.keyboardFocus: open ? (focusPrimed ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.Exclusive) : WlrKeyboardFocus.None
 
   onBackingWindowVisibleChanged: beginFocusPrime()
 
