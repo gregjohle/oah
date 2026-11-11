@@ -51,6 +51,8 @@ Singleton {
   readonly property QtObject toplevels: QtObject { property var values: [] }
   property QtObject focusedMonitor: null
   property QtObject focusedWorkspace: null
+  // ToplevelManager.activeToplevel: the focused window, or null.
+  property QtObject activeToplevel: null
 
   component MonitorObject: QtObject {
     property int id
@@ -77,7 +79,15 @@ Singleton {
     property var lastIpcObject: ({})
   }
 
+  // Also stands in for Quickshell.Wayland's Toplevel: upstream reaches the
+  // Wayland handle as `toplevel.wayland`, and ToplevelManager's
+  // activeToplevel/toplevels are this singleton's (see the import transform).
   component ToplevelObject: QtObject {
+    id: toplevelObject
+    readonly property QtObject wayland: toplevelObject
+    readonly property var parent: null
+    function activate() { Quickshell.execDetached(["bspc", "node", toplevelObject.address, "-f"]) }
+    function close() { Quickshell.execDetached(["bspc", "node", toplevelObject.address, "-c"]) }
     property string address
     property string title
     property string appId
@@ -303,6 +313,9 @@ Singleton {
     if (!root.sameMembers(root.monitors.values, monitorList)) root.monitors.values = monitorList
     if (!root.sameMembers(root.workspaces.values, workspaceList)) root.workspaces.values = workspaceList
     if (!root.sameMembers(root.toplevels.values, toplevelList)) root.toplevels.values = toplevelList
+    var active = null
+    for (var a = 0; a < toplevelList.length; a++) if (toplevelList[a].activated) active = toplevelList[a]
+    root.set(root, "activeToplevel", active)
     root.set(root, "focusedMonitor", focusedMonitor)
     root.set(root, "focusedWorkspace", focusedWorkspace)
 

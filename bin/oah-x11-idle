@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+"""OAH(x11): report when the user goes idle and comes back, for the shell's
+idle service (shell/Oah/OahIdleMonitor.qml stands in for Quickshell's
+Wayland-only IdleMonitor).
+
+Reads the X server's idle time from the MIT-SCREEN-SAVER extension (time
+since the last keyboard or pointer input) and prints one line per change:
+"idle" once input has been absent for TIMEOUT seconds, "active" when input
+resumes. Prints the current state first.
+
+Usage: oah-x11-idle TIMEOUT_SECONDS
+"""
+
+import sys
+import time
+
+from Xlib import display
+from Xlib.ext import screensaver  # noqa: F401  (registers the extension)
+
+POLL = 0.5
+
+
+def main():
+    timeout_ms = max(1.0, float(sys.argv[1])) * 1000
+    d = display.Display()
+    if not d.has_extension("MIT-SCREEN-SAVER"):
+        print("oah-x11-idle: the X server has no MIT-SCREEN-SAVER extension", file=sys.stderr)
+        return 1
+    root = d.screen().root
+    state = None
+    while True:
+        idle_ms = root.screensaver_query_info().idle
+        now = "idle" if idle_ms >= timeout_ms else "active"
+        if now != state:
+            print(now, flush=True)
+            state = now
+        if state == "active":
+            # Sleep until the timeout could next be reached, in short steps
+            # so a change in input is still noticed promptly.
+            time.sleep(min(POLL, max(0.05, (timeout_ms - idle_ms) / 1000)))
+        else:
+            time.sleep(POLL / 5)  # notice returning input quickly
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except (KeyboardInterrupt, BrokenPipeError):
+        sys.exit(0)

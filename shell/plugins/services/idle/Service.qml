@@ -268,7 +268,7 @@ Item {
   // With both timeouts at 0 the monitor stops reporting, so nothing else would end a running cycle.
   onIdleTimersEnabledChanged: if (!idleTimersEnabled) cancelIdleCycle("idle-timers-disabled")
 
-  IdleMonitor {
+  OahIdleMonitor { // OAH(x11): was IdleMonitor
     id: idleMonitor
     enabled: root.idleEnabled && root.idleTimersEnabled
     timeout: Math.max(1, root.firstIdleTimeoutSeconds)
