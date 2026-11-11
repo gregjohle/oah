@@ -25,6 +25,4 @@ if pgrep -x picom > /dev/null; then
     killall -USR1 picom
 fi
 
-# Optional: Trigger an OSD notification using our future Ewwii OSD
-# ewwii update osd_message="Corners: $STATE"
 echo "Corners set to $STATE"

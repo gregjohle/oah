@@ -28,8 +28,7 @@ fi
 # 4. Background & Theme Daemon (Timewall)
 # timewall & # (Placeholder for Phase 4)
 
-# 5. UI Shell (Ewwii)
-# ewwii daemon & # (Placeholder for Phase 2)
+# 5. UI Shell (Omarchy Quickshell shell — wired up by the X11 port)
 
 # 6. Window Manager
 # Finally, hand over the session to bspwm

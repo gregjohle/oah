@@ -23,7 +23,7 @@ super + Return
 	ghostty
 
 super + space
-	ewwii open launcher
+	omarchy-menu toggle
 
 super + alt + space
 	omarchy-menu toggle apps
