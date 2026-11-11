@@ -25,9 +25,26 @@ import Quickshell.Io
 Singleton {
   id: root
 
-  // Hyprland-style raw events ({ name, data }) for upstream's
-  // `Connections { target: Hyprland; function onRawEvent(event) }`.
+  // Hyprland-style raw events for upstream's
+  // `Connections { target: Hyprland; function onRawEvent(event) }`:
+  // { name, data, parse(n) }, where data is Hyprland's comma-separated payload
+  // and parse(n) splits it into n fields, the last keeping any commas.
   signal rawEvent(var event)
+
+  function emitEvent(name, data) {
+    var payload = String(data || "")
+    root.rawEvent({
+      name: name,
+      data: payload,
+      parse: function(count) {
+        var parts = payload.split(",")
+        if (!count || parts.length <= count) return parts
+        return parts.slice(0, count - 1).concat([parts.slice(count - 1).join(",")])
+      }
+    })
+  }
+
+  property bool primed: false
 
   readonly property QtObject workspaces: QtObject { property var values: [] }
   readonly property QtObject monitors: QtObject { property var values: [] }
@@ -289,11 +306,36 @@ Singleton {
     root.set(root, "focusedMonitor", focusedMonitor)
     root.set(root, "focusedWorkspace", focusedWorkspace)
 
+    // Window open/close events in Hyprland's shapes (openwindow:
+    // ADDRESS,WORKSPACE,CLASS,TITLE; closewindow: ADDRESS, addresses without
+    // 0x), diffed here because bspwm's own events carry different payloads.
+    // Like Hyprland, nothing is reported for windows open at startup.
+    var opened = [], closed = []
+    if (root.primed) {
+      for (var t = 0; t < toplevelList.length; t++) {
+        if (root.knownAddresses.indexOf(toplevelList[t].address) === -1) opened.push(toplevelList[t])
+      }
+      for (var k = 0; k < root.knownAddresses.length; k++) {
+        if (!liveToplevels[root.knownAddresses[k]]) closed.push(root.knownAddresses[k])
+      }
+    }
+    root.knownAddresses = toplevelList.map(function(x) { return x.address })
+    root.primed = true
+
     // Objects that left are destroyed only after the lists stop naming them.
     root.retire(root.toplevelObjects, liveToplevels)
     root.retire(root.workspaceObjects, liveWorkspaces)
     root.retire(root.monitorObjects, liveMonitors)
+
+    for (var o = 0; o < opened.length; o++) {
+      var w = opened[o]
+      root.emitEvent("openwindow", [w.address.replace(/^0x/, ""), w.workspace ? w.workspace.name : "", w.appId, w.title].join(","))
+    }
+    for (var c2 = 0; c2 < closed.length; c2++) root.emitEvent("closewindow", closed[c2].replace(/^0x/, ""))
   }
+
+  // Addresses of the windows the last update reported, for open/close events.
+  property var knownAddresses: []
 
   function collectClients(node, out) {
     if (!node) return
@@ -310,8 +352,7 @@ Singleton {
     if (name === "desktop_rename") return "renameworkspace"
     if (name === "node_focus") return "activewindowv2"
     if (name === "node_state" && line.indexOf("fullscreen") !== -1) return "fullscreen"
-    if (name === "node_add") return "openwindow"
-    if (name === "node_remove") return "closewindow"
+    // openwindow/closewindow come from apply(), with Hyprland payloads.
     if (name === "node_transfer") return "movewindowv2"
     if (name === "monitor_add") return "monitoraddedv2"
     if (name === "monitor_remove") return "monitorremovedv2"
@@ -352,7 +393,8 @@ Singleton {
     stdout: SplitParser {
       onRead: function(line) {
         var name = root.translate(line)
-        if (name) root.rawEvent({ name: name, data: String(line) })
+        // Events only checked by name; their bspwm payload rides along.
+        if (name) root.emitEvent(name, String(line))
         debounce.restart()
       }
     }
