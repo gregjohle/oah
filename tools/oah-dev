@@ -155,27 +155,8 @@ seed_dev_home() {
   [[ -f $DEV_HOME/.oah-dev-home ]] && return 0
 
   echo "Seeding dev home: $DEV_HOME"
-  mkdir -p "$DEV_HOME/.config/fontconfig/conf.d" "$DEV_HOME/.config/omarchy/themes"
-  cp -a "$OAH_UPSTREAM/config/." "$DEV_HOME/.config/"
-  cp "$OAH_UPSTREAM/default/fontconfig/conf.avail/50-omarchy.conf" "$DEV_HOME/.config/fontconfig/conf.d/"
-
-  # omarchy-font-set and omarchy-theme-set notify and restart a running
-  # session; there is none yet, so stub those side effects for seeding only.
-  # pkill/killall are stubbed too: font-set signals running terminals
-  # (`pkill -USR1 kitty`, `pkill -SIGUSR2 ghostty`), and from here those would
-  # reach the host's terminals, not anything in the dev session.
-  local stubs
-  stubs=$(mktemp -d)
-  for stub in omarchy-restart-shell omarchy-hook omarchy-notification-send pkill killall; do
-    printf '#!/bin/sh\nexit 0\n' >"$stubs/$stub"
-    chmod +x "$stubs/$stub"
-  done
-
-  dev_env PATH="$stubs:$OMARCHY_PATH/bin:$PATH" omarchy-font-set "JetBrainsMono Nerd Font" >/dev/null
-  dev_env PATH="$stubs:$OMARCHY_PATH/bin:$PATH" OMARCHY_THEME_HEADLESS=1 \
-    dbus-run-session -- omarchy-theme-set "$theme" >/dev/null
-  rm -rf -- "$stubs"
-
+  mkdir -p "$DEV_HOME"
+  dev_env "$OAH_ROOT/tools/oah-seed-home" --theme "$theme"
   [[ -s $DEV_HOME/.local/state/omarchy/current/theme.name ]] || oah_die "seeding the theme failed"
   touch "$DEV_HOME/.oah-dev-home"
 }

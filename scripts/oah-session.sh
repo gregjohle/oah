@@ -4,7 +4,7 @@
 # an Omarchy session, on X11 with bspwm.
 #
 #   1. Build the OMARCHY_PATH runtime tree and put its commands on PATH.
-#   2. Seed the default theme on first login (as Omarchy's installer does).
+#   2. Seed $HOME on first login the way Omarchy's installer does.
 #   3. Export the session environment to D-Bus/systemd activation.
 #   4. Start bspwm; once it owns the root window, start the panel-stacking
 #      helper, picom and the Omarchy shell (via upstream's supervisor,
@@ -36,11 +36,10 @@ OMARCHY_PATH=$("$OAH_ROOT/tools/oah-runtime" --print) || {
 export OMARCHY_PATH
 export PATH="$OMARCHY_PATH/bin:$PATH"
 
-# --- 2. First login: default theme -------------------------------------------
-mkdir -p "$HOME/.config/omarchy/themes"
-if [[ ! -s $HOME/.local/state/omarchy/current/theme.name ]]; then
-  OMARCHY_THEME_HEADLESS=1 omarchy-theme-set "Tokyo Night"
-fi
+# --- 2. First login: seed $HOME like an Omarchy install -------------------------
+# Shipped configs, fontconfig defaults, default font and theme; anything the
+# user already has is left alone.
+"$OAH_ROOT/tools/oah-seed-home" || echo "oah-session: seeding \$HOME failed; continuing"
 
 if [[ -f $HOME/.Xresources ]]; then
   xrdb -merge "$HOME/.Xresources"
@@ -78,8 +77,11 @@ start stacking oah-x11-stacking
 # The shell draws transparent panels and needs a compositor. picom's GLX
 # backend needs working GL; without it (VMs, some drivers) picom exits at once,
 # so fall back to the xrender backend.
+# OAH_PICOM_BACKEND=xrender forces the fallback up front (VMs whose software
+# GL starts but renders wrong, which the exit check can't detect).
 start_picom() {
-  picom --config "$OAH_ROOT/configs/picom/picom.conf" >>"$LOGS/picom.log" 2>&1 &
+  picom --config "$OAH_ROOT/configs/picom/picom.conf" ${OAH_PICOM_BACKEND:+--backend "$OAH_PICOM_BACKEND"} \
+    >>"$LOGS/picom.log" 2>&1 &
   local pid=$!
   sleep 1.5
   if ! kill -0 "$pid" 2>/dev/null; then
