@@ -13,6 +13,7 @@ PanelWindow has its own equivalents:
   WlrLayershell.layer: X          -> aboveWindows   (Top/Overlay above, Background/Bottom below)
   WlrLayershell.keyboardFocus: X  -> focusable      (anything but None takes focus)
   WlrLayershell.namespace: X      -> dropped        (no X11 equivalent)
+  Hyprland.<api>                  -> Compositor.<api> (shell/Oah/Compositor.qml, bspwm-backed)
 
 Usage: x11-qml-transform.py FILE...   (rewrites files in place, prints a summary)
 """
@@ -47,13 +48,52 @@ CONTINUES_AFTER = ("?", ":", "&&", "||", "+", "-", "*", "/", "(", ",", "!", "=")
 CONTINUES_BEFORE = ("?", ":", "&&", "||", "+", "-", "*", "/", ")", ".")
 
 
+# Hyprland's IPC singleton -> OAH's bspwm-backed stand-in (shell/Oah/Compositor.qml),
+# which offers the same workspaces/monitors/toplevels API.
+HYPRLAND_REF = re.compile(r"(?<![\w.])Hyprland\.")
+HYPRLAND_TARGET = re.compile(r"(?<![\w.])target:\s*Hyprland\b")
+HYPRLAND_IMPORT = re.compile(r"^(?P<indent>\s*)import Quickshell\.Hyprland\s*$")
+COMPOSITOR_IMPORT = "import qs.Oah"
+
+
+def code_lines(text: str):
+    return (l for l in text.splitlines() if not l.lstrip().startswith("//"))
+
+
+def transform_hyprland(text: str) -> tuple[str, int]:
+    def uses(l):
+        return HYPRLAND_REF.search(l) or HYPRLAND_TARGET.search(l)
+    if not any(uses(l) for l in code_lines(text)):
+        return text, 0
+    out, changed, imported = [], 0, COMPOSITOR_IMPORT in text
+    for line in text.splitlines(keepends=True):
+        body = line.rstrip("\n")
+        newline = "\n" if line.endswith("\n") else ""
+        im = HYPRLAND_IMPORT.match(body)
+        if im and not imported:
+            out.append(line)
+            out.append(f"{im['indent']}{COMPOSITOR_IMPORT} {MARK}Hyprland IPC, now bspwm-backed{newline}")
+            imported = True
+            continue
+        if body.lstrip().startswith("//") or MARK in body or not uses(body):
+            out.append(line)
+            continue
+        new = HYPRLAND_TARGET.sub("target: Compositor", HYPRLAND_REF.sub("Compositor.", body))
+        out.append(f"{new} {MARK}Hyprland{newline}")
+        changed += 1
+    if not imported:
+        raise ValueError("uses Hyprland without importing Quickshell.Hyprland")
+    return "".join(out), changed
+
+
 def strip_comment(code: str) -> str:
     return re.sub(r"\s*//.*$", "", code)
 
 
 def transform(text: str) -> tuple[str, int]:
+    text, changed = transform_hyprland(text)
     lines = text.splitlines(keepends=True)
-    out, changed, i = [], 0, 0
+    out, i = [], 0
     while i < len(lines):
         line = lines[i]
         body = line.rstrip("\n")

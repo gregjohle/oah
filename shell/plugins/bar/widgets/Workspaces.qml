@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Hyprland
+import qs.Oah // OAH(x11): was Hyprland IPC, now bspwm-backed
 import Quickshell.Io
 import qs.Commons
 import qs.Ui
@@ -19,7 +20,7 @@ BarWidget {
   readonly property var monitor: {
     var window = root.QsWindow.window
     var screen = window ? window.screen : null
-    return screen ? Hyprland.monitorFor(screen) : Hyprland.focusedMonitor
+    return screen ? Compositor.monitorFor(screen) : Compositor.focusedMonitor // OAH(x11): was Hyprland
   }
   readonly property string monitorName: root.monitor ? root.monitor.name : ""
 
@@ -67,7 +68,7 @@ BarWidget {
   }
 
   function workspaceById(id) {
-    var values = Hyprland.workspaces.values
+    var values = Compositor.workspaces.values // OAH(x11): was Hyprland
     for (var i = 0; i < values.length; i++) {
       if (values[i].id === id) return values[i]
     }
@@ -82,7 +83,7 @@ BarWidget {
     var base = root.block * root.slots
     var ids = [base + 1, base + 2, base + 3, base + 4, base + 5]
     var guests = []
-    var values = Hyprland.workspaces.values
+    var values = Compositor.workspaces.values // OAH(x11): was Hyprland
 
     for (var i = 0; i < values.length; i++) {
       var id = values[i].id
@@ -194,7 +195,7 @@ BarWidget {
   }
 
   Connections {
-    target: Hyprland
+    target: Compositor // OAH(x11): was Hyprland
     function onRawEvent(event) {
       var name = event ? String(event.name) : ""
       if (name === "configreloaded") root.refresh()
@@ -206,8 +207,8 @@ BarWidget {
       // bar shares what Hyprland answers, so one asks after a plain switch.
       var switched = name === "workspacev2" && root.monitor !== null && root.monitor.focused
       if (switched || name === "moveworkspacev2" || name === "changeworkspaceid") {
-        Hyprland.refreshMonitors()
-        Hyprland.refreshWorkspaces()
+        Compositor.refreshMonitors() // OAH(x11): was Hyprland
+        Compositor.refreshWorkspaces() // OAH(x11): was Hyprland
       }
     }
   }

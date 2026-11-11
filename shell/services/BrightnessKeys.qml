@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import qs.Oah // OAH(x11): was Hyprland IPC, now bspwm-backed
 import Quickshell.Io
 import qs.Commons
 import "BrightnessModel.js" as BrightnessModel
@@ -25,7 +26,7 @@ Item {
   // Returns false when the focused display is not one to handle here, so the
   // caller falls back to the script.
   function handle(action) {
-    var monitor = Hyprland.focusedMonitor
+    var monitor = Compositor.focusedMonitor // OAH(x11): was Hyprland
     var name = monitor ? String(monitor.name || "") : ""
     if (!/^(eDP|LVDS|DSI)-/.test(name) || !device) return false
     if (action !== "raise" && action !== "lower") return false

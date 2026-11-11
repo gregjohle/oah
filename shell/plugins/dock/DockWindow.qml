@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import qs.Oah // OAH(x11): was Hyprland IPC, now bspwm-backed
 import Quickshell.Wayland
 import qs.Commons
 import qs.Commons as Commons
@@ -21,14 +22,14 @@ PanelWindow {
 
   readonly property string position: dock ? dock.position : "bottom"
   readonly property bool vertical: dock ? dock.vertical : false
-  readonly property var monitor: Hyprland.monitorFor(screen)
+  readonly property var monitor: Compositor.monitorFor(screen) // OAH(x11): was Hyprland
   readonly property var workspace: monitor ? monitor.activeWorkspace : null
   readonly property int workspaceId: workspace ? workspace.id : -1
   // The most fullscreen window on the workspace, as Hyprland counts it: 1 is
   // maximized, and 2 or 3 fullscreen.
   readonly property int fullscreenMode: {
     var mode = 0
-    var toplevels = Hyprland.toplevels.values
+    var toplevels = Compositor.toplevels.values // OAH(x11): was Hyprland
     for (var i = 0; i < toplevels.length; i++) {
       var toplevel = toplevels[i]
       if (!toplevel.workspace || toplevel.workspace.id !== workspaceId) continue

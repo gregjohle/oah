@@ -3,6 +3,7 @@ import QtQuick
 import qs.Commons as Commons
 import Quickshell
 import Quickshell.Hyprland
+import qs.Oah // OAH(x11): was Hyprland IPC, now bspwm-backed
 import Quickshell.Io
 
 // Shared structural style tokens for the shell. Color is the palette
@@ -492,7 +493,7 @@ QtObject {
   // A reload is when the animations toggle, a theme or the user's own config
   // lands, and Hyprland only announces it once the new values are in effect.
   property Connections hyprlandEvents: Connections {
-    target: Hyprland
+    target: Compositor // OAH(x11): was Hyprland
     function onRawEvent(event) {
       if (event && String(event.name) === "configreloaded") root.refresh()
     }
