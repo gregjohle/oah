@@ -1,0 +1,92 @@
+#!/bin/bash
+# Layer 3: start the whole desktop headless (Xvfb + bspwm + sxhkd + shell) with
+# a fresh dev home, run test/smoke-checks.sh inside the session, and compare
+# failing checks with test/baselines/smoke.txt (same rules as test/upstream:
+# a failure not in the baseline is a regression; a baseline check that now
+# passes fails the run until it comes out of the baseline).
+#
+# Usage: test/smoke [--update-baseline] [--keep] [--after SECONDS]
+#   --keep  keep the scratch dir (screenshot, logs, dev home)
+
+set -uo pipefail
+
+source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../tools/lib" && pwd)/common.sh"
+
+update=0 keep=0 after=10
+while (( $# )); do
+  case "$1" in
+    --update-baseline) update=1; shift ;;
+    --keep) keep=1; shift ;;
+    --after) after=$2; shift 2 ;;
+    -h|--help) oah_help "$0"; exit 0 ;;
+    *) oah_die "unknown argument: $1" ;;
+  esac
+done
+
+for cmd in Xvfb xwininfo; do
+  command -v "$cmd" >/dev/null 2>&1 || oah_die "missing dependency: $cmd"
+done
+
+baseline=$OAH_ROOT/test/baselines/smoke.txt
+scratch=$(mktemp -d /tmp/oah-smoke.XXXXXX)
+cleanup() {
+  if (( keep )); then echo "Kept: $scratch"; else rm -rf -- "$scratch"; fi
+  return 0
+}
+trap cleanup EXIT
+
+export SMOKE_RESULTS=$scratch/results.txt
+: >"$SMOKE_RESULTS"
+
+# Everything in scratch: never the developer's dev home, runtime or logs.
+DEV_HOME=$scratch/home DEV_LOGS=$scratch/logs OAH_RUNTIME=$scratch/runtime \
+  env -u DISPLAY "$OAH_ROOT/tools/oah-dev" --headless --size 1920x1080 \
+  --screenshot "$scratch/screenshot.png" --after "$after" \
+  --check "$OAH_ROOT/test/smoke-checks.sh" >"$scratch/oah-dev.log" 2>&1
+status=$?
+
+if (( status != 0 )) || [[ ! -s $SMOKE_RESULTS ]]; then
+  cat "$scratch/oah-dev.log"
+  keep=1
+  oah_die "the dev session failed to run (exit $status)"
+fi
+
+while read -r name result detail; do
+  if [[ $result == pass ]]; then echo "  pass  $name"; else echo "  FAIL  $name: $detail"; fi
+done <"$SMOKE_RESULTS"
+
+current=$(awk '$2 == "fail" { print $1 }' "$SMOKE_RESULTS" | sort -u)
+
+if (( update )); then
+  mkdir -p "$(dirname "$baseline")"
+  {
+    echo "# Smoke checks known to fail (see test/smoke-checks.sh). Regenerate with:"
+    echo "#   test/smoke --update-baseline"
+    [[ -n $current ]] && printf '%s\n' "$current"
+  } >"$baseline"
+  echo "Baseline updated: $(grep -cv '^#' "$baseline") known failing check(s)"
+  exit 0
+fi
+
+[[ -f $baseline ]] || oah_die "no baseline at $baseline (run with --update-baseline first)"
+known=$(grep -v '^#' "$baseline" | sed 's/ *#.*//; /^$/d' | sort -u)
+
+regressions=$(comm -23 <(printf '%s\n' "$current" | sed '/^$/d') <(printf '%s\n' "$known" | sed '/^$/d'))
+fixed=$(comm -13 <(printf '%s\n' "$current" | sed '/^$/d') <(printf '%s\n' "$known" | sed '/^$/d'))
+
+status=0
+if [[ -n $fixed ]]; then
+  # A fixed check left in the baseline would hide its next regression, so the
+  # baseline must be updated in the same change that fixes it.
+  echo "not ok - smoke: now passing but still in the baseline (run test/smoke --update-baseline):"
+  printf '  %s\n' $fixed
+  status=1
+fi
+
+if [[ -n $regressions ]]; then
+  echo "not ok - smoke: regression(s): $(tr '\n' ' ' <<<"$regressions")"
+  keep=1
+  status=1
+fi
+(( status == 0 )) || exit 1
+echo "ok - smoke: no regressions ($(grep -cv '^#' "$baseline") known failing check(s))"

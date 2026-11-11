@@ -1,0 +1,17 @@
+--- a/test/shell.d/base-test.sh	2026-11-11 12:23:32.463629488 -0500
++++ b/test/shell.d/base-test.sh	2026-11-11 12:23:32.476879827 -0500
+@@ -72,6 +72,14 @@
+ # skip belonged. Probe the socket, then Hyprland itself, since a compositor that
+ # died mid-session can leave its socket behind.
+ compositor_reachable() {
++  # OAH: on X11 the session's display server is the X server (running bspwm);
++  # a display that answers counts as a reachable compositor. On Wayland the
++  # upstream checks below apply unchanged.
++  if [[ -z ${WAYLAND_DISPLAY:-} && -n ${DISPLAY:-} ]]; then
++    xprop -root _NET_SUPPORTING_WM_CHECK >/dev/null 2>&1
++    return
++  fi
++
+   local socket=${WAYLAND_DISPLAY:-}
+ 
+   [[ -n $socket ]] || return 1

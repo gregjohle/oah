@@ -1,0 +1,53 @@
+#!/bin/bash
+# Run every test layer and report one result. Exits non-zero if any layer
+# fails; every layer runs even when an earlier one fails.
+#
+#   1. test/lint       bash -n, shellcheck, qmllint (changed QML)
+#   2. test/oah.d/*    OAH's own tests
+#   3. test/smoke      headless desktop session checks vs baseline
+#   4. test/upstream   upstream Omarchy's suites vs baseline (slowest)
+#
+# Usage: test/run [--quick]
+#   --quick  skip test/upstream (for fast iteration; PRs run the full set)
+
+set -uo pipefail
+
+OAH_ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
+cd "$OAH_ROOT" || exit 1
+
+quick=0
+[[ ${1:-} == --quick ]] && quick=1
+
+failed=()
+run_layer() {
+  local name=$1; shift
+  printf '\n==> %s\n' "$name"
+  "$@" || failed+=("$name")
+}
+
+run_layer lint test/lint
+
+oah_tests() {
+  local t status=0
+  for t in test/oah.d/*-test.sh; do
+    printf -- '-- %s\n' "${t##*/}"
+    bash "$t" || status=1
+  done
+  return "$status"
+}
+run_layer "oah tests" oah_tests
+
+run_layer smoke test/smoke
+
+if (( quick )); then
+  printf '\n==> upstream # SKIP (--quick)\n'
+else
+  run_layer upstream test/upstream
+fi
+
+echo
+if (( ${#failed[@]} )); then
+  echo "FAILED: ${failed[*]}"
+  exit 1
+fi
+echo "All layers passed$( ((quick)) && echo ' (upstream skipped)')."

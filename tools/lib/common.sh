@@ -15,7 +15,7 @@ fi
 
 OAH_ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)
 OAH_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/oah"
-OAH_PIN=$(tr -d '[:space:]' <"$OAH_ROOT/UPSTREAM")
+OAH_PIN=${OAH_PIN:-$(tr -d "[:space:]" <"$OAH_ROOT/UPSTREAM")}
 
 if [[ -z ${OAH_UPSTREAM:-} ]]; then
   if [[ -d $OAH_ROOT/../omarchy/.git ]]; then
@@ -53,4 +53,9 @@ oah_require_upstream() {
       oah_die "upstream at $OAH_UPSTREAM is at '${at:-untagged}', expected pinned release $OAH_PIN (run: git -C \"$OAH_UPSTREAM\" checkout $OAH_PIN)"
     fi
   fi
+}
+
+# Print a script's leading comment block (after the shebang) as its help text.
+oah_help() {
+  awk 'NR == 1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' "$1"
 }

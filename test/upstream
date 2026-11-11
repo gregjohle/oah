@@ -1,0 +1,168 @@
+#!/bin/bash
+# Layer 2: run upstream Omarchy's own test suites against OAH's runtime tree,
+# on X11 (Xvfb + bspwm), and compare the failures with a recorded baseline.
+#
+# Upstream's tests encode how Omarchy is supposed to behave, so they're the
+# reference for a 1:1 port. Some fail here for reasons unrelated to OAH (they
+# expect Omarchy installed in /usr/bin, or tools this machine lacks); those are
+# recorded in test/baselines/upstream.txt. A test that fails and isn't in the
+# baseline is a regression. A baseline test that now passes also fails the run
+# until it's removed from the baseline, so progress is locked in.
+#
+# Usage: test/upstream [--update-baseline] [--keep]
+#   --update-baseline  rewrite the baseline from this run's failures
+#   --keep             keep the scratch dir (runtime, logs) for inspection
+
+set -uo pipefail
+
+source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../tools/lib" && pwd)/common.sh"
+
+update=0 keep=0
+for arg in "$@"; do
+  case "$arg" in
+    --update-baseline) update=1 ;;
+    --keep) keep=1 ;;
+    -h|--help) oah_help "$0"; exit 0 ;;
+    *) oah_die "unknown argument: $arg" ;;
+  esac
+done
+
+for cmd in Xvfb bspwm xprop dbus-run-session patch; do
+  command -v "$cmd" >/dev/null 2>&1 || oah_die "missing dependency: $cmd"
+done
+
+baseline=$OAH_ROOT/test/baselines/upstream.txt
+
+# Short path on purpose: tests put Unix sockets under XDG_RUNTIME_DIR, and
+# socket paths are limited to 108 bytes.
+scratch=$(mktemp -d /tmp/oah-upstream.XXXXXX)
+xvfb_pid="" logs_dir=""
+cleanup() {
+  [[ -n $xvfb_pid ]] && kill "$xvfb_pid" 2>/dev/null
+  if (( keep )); then
+    echo "Kept: $scratch${logs_dir:+ and $logs_dir}"
+  else
+    rm -rf -- "$scratch"
+    # test/shell keeps per-file logs in its own temp dir; only remove it if it
+    # is what test/shell said it was.
+    [[ $logs_dir == /tmp/omarchy-test-shell.* ]] && rm -rf -- "$logs_dir"
+  fi
+  return 0
+}
+trap cleanup EXIT
+
+# Runtime tree under test, with upstream's test/ copied in (not symlinked) so
+# OAH's test patches apply to the copy, never to the upstream checkout.
+runtime=$scratch/rt
+OAH_RUNTIME=$runtime "$OAH_ROOT/tools/oah-runtime" >/dev/null || exit 1
+rm "$runtime/test"
+cp -a "$OAH_UPSTREAM/test" "$runtime/test"
+for p in "$OAH_ROOT"/test/upstream-patches/*.patch; do
+  [[ -f $p ]] || continue
+  patch -s -p1 -d "$runtime" <"$p" || oah_die "upstream test patch failed to apply: ${p##*/}"
+done
+
+display=""
+for n in {160..199}; do
+  [[ -e /tmp/.X11-unix/X$n || -e /tmp/.X$n-lock ]] && continue
+  display=":$n"; break
+done
+[[ -n $display ]] || oah_die "no free X display"
+Xvfb "$display" -screen 0 1920x1080x24 -nolisten tcp >"$scratch/xvfb.log" 2>&1 &
+xvfb_pid=$!
+for _ in {1..50}; do [[ -e /tmp/.X11-unix/X${display#:} ]] && break; sleep 0.1; done
+
+mkdir -p "$scratch/run" "$scratch/home"
+chmod 700 "$scratch/run"
+
+# Inside an isolated session: bspwm on the Xvfb display, then the suites.
+cat >"$scratch/session.sh" <<'EOF'
+#!/bin/bash
+bspwm -c "$OAH_ROOT/configs/bspwm/bspwmrc" >"$SCRATCH/bspwm.log" 2>&1 &
+for _ in {1..50}; do xprop -root _NET_SUPPORTING_WM_CHECK >/dev/null 2>&1 && break; sleep 0.1; done
+cd "$RUNTIME" || exit 1
+./test/cli >"$SCRATCH/cli.log" 2>&1; echo $? >"$SCRATCH/cli.code"
+./test/shell >"$SCRATCH/shell.log" 2>&1; echo $? >"$SCRATCH/shell.code"
+pid=$(cat "$XDG_RUNTIME_DIR"/oah-sxhkd-*.pid 2>/dev/null) && kill "$pid" 2>/dev/null
+bspc quit 2>/dev/null
+exit 0
+EOF
+chmod +x "$scratch/session.sh"
+
+echo "Running upstream suites ($OAH_PIN) against $runtime on $display ..."
+start=$SECONDS
+env -u WAYLAND_DISPLAY -u HYPRLAND_INSTANCE_SIGNATURE -u SWAYSOCK \
+  -u XDG_CONFIG_HOME -u XDG_CACHE_HOME -u XDG_DATA_HOME -u XDG_STATE_HOME \
+  -u XDG_CURRENT_DESKTOP -u DBUS_SESSION_BUS_ADDRESS \
+  DISPLAY="$display" XDG_RUNTIME_DIR="$scratch/run" XDG_SESSION_TYPE=x11 \
+  QT_QPA_PLATFORM=xcb OAH_ROOT="$OAH_ROOT" SCRATCH="$scratch" RUNTIME="$runtime" \
+  dbus-run-session -- "$scratch/session.sh" >"$scratch/session.log" 2>&1
+echo "Finished in $((SECONDS - start))s"
+logs_dir=$(sed -n 's/^Logs for every file: //p' "$scratch/shell.log" | tail -n1)
+
+# Current failures, one per line: test/cli, or test/shell.d/<file>.
+current=$scratch/current.txt
+{
+  [[ $(cat "$scratch/cli.code" 2>/dev/null) == 0 ]] || echo "test/cli"
+  grep -oE '^  test/shell\.d/[^ ]+-test\.sh' "$scratch/shell.log" | sed 's/^  //'
+} | sort -u >"$current"
+
+# test/shell can fail without listing files (e.g. it crashed); never let that
+# read as a clean run.
+shell_code=$(cat "$scratch/shell.code" 2>/dev/null || echo missing)
+if [[ $shell_code != 0 ]] && ! grep -q 'test files failed' "$scratch/shell.log"; then
+  tail -20 "$scratch/shell.log"
+  keep=1
+  oah_die "test/shell exited $shell_code without a failure summary"
+fi
+
+summary=$(grep -E 'test files failed|All [0-9]+ test files passed' "$scratch/shell.log" | tail -1)
+echo "shell: ${summary:-$(grep -c '' "$current") failing}; cli: $([[ -s $current ]] && grep -qx test/cli "$current" && echo failed || echo passed)"
+
+if (( update )); then
+  mkdir -p "$(dirname "$baseline")"
+  {
+    echo "# Upstream tests known to fail under OAH (on the reference dev machine)."
+    echo "# One entry per line; text after '#' is the reason. Regenerate with:"
+    echo "#   test/upstream --update-baseline"
+    while IFS= read -r t; do
+      reason=$(grep -E "^${t//./\\.}( |$)" "$baseline" 2>/dev/null | sed -n 's/^[^#]*# *//p' | head -n1)
+      printf '%s%s\n' "$t" "${reason:+  # $reason}"
+    done <"$current"
+  } >"$baseline.new"
+  mv "$baseline.new" "$baseline"
+  echo "Baseline updated: $(grep -cv '^#' "$baseline") known failures"
+  exit 0
+fi
+
+[[ -f $baseline ]] || oah_die "no baseline at $baseline (run with --update-baseline first)"
+known=$scratch/known.txt
+grep -v '^#' "$baseline" | sed 's/ *#.*//' | sed '/^$/d' | sort -u >"$known"
+
+mapfile -t regressions < <(comm -23 "$current" "$known")
+mapfile -t fixed < <(comm -13 "$current" "$known")
+
+status=0
+if (( ${#fixed[@]} )); then
+  # A fixed test left in the baseline would hide its next regression, so the
+  # baseline must be updated in the same change that fixes it.
+  echo "not ok - upstream suites: now passing but still in the baseline (run test/upstream --update-baseline):"
+  printf '  %s\n' "${fixed[@]}"
+  status=1
+fi
+
+if (( ${#regressions[@]} )); then
+  echo "not ok - upstream suites: ${#regressions[@]} regression(s):"
+  for t in "${regressions[@]}"; do
+    printf '  %s\n' "$t"
+    log=$(grep -oE "^  $t \(log: [^)]+\)" "$scratch/shell.log" | sed 's/.*(log: //; s/)$//')
+    if [[ $t == test/cli ]]; then grep -m3 'not ok' "$scratch/cli.log" | sed 's/^/    /'
+    elif [[ -n $log && -f $log ]]; then grep -m3 -E 'not ok|Error|error' "$log" | sed 's/^/    /'
+    fi
+  done
+  keep=1
+  exit 1
+fi
+(( status == 0 )) || exit 1
+
+echo "ok - upstream suites: no regressions ($(wc -l <"$known") known failures in baseline)"

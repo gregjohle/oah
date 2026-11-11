@@ -8,7 +8,9 @@
 # Usage: oah-dev [options]
 #   --size WxH           screen size (default 1920x1080)
 #   --screenshot FILE    capture the screen after --after seconds, then exit
-#   --after SECONDS      delay before the screenshot (default 8)
+#   --after SECONDS      delay before the screenshot/check (default 8)
+#   --check SCRIPT       run SCRIPT inside the live session after --after seconds,
+#                        then exit with its status (used by test/smoke)
 #   --headless           use Xvfb instead of a Xephyr window (needs xorg-server-xvfb)
 #   --fresh              reset the dev home before starting
 #   --theme NAME         theme to seed a fresh dev home with (default "Tokyo Night")
@@ -34,14 +36,14 @@ SELF=$(readlink -f -- "${BASH_SOURCE[0]}")
 DEV_HOME="${DEV_HOME:-${XDG_CACHE_HOME:-$HOME/.cache}/oah/dev-home}"
 DEV_LOGS="${DEV_LOGS:-${XDG_STATE_HOME:-$HOME/.local/state}/oah/dev}"
 
-usage() { sed -n '2,20p' "$SELF" | sed 's/^# \{0,1\}//'; }
+usage() { oah_help "$SELF"; }
 
 # ---------------------------------------------------------------------------
 # Inner half: runs inside dbus-run-session with the isolated environment.
 # ---------------------------------------------------------------------------
 if [[ ${1:-} == "--inner" ]]; then
   shift
-  screenshot=$1 after=$2
+  screenshot=$1 after=$2 check=${3:-}
 
   pids=()
   stop_inner() {
@@ -62,10 +64,19 @@ if [[ ${1:-} == "--inner" ]]; then
   QS_NO_RELOAD_POPUP=1 setsid quickshell -n -p "$OMARCHY_PATH/shell" --no-color >"$DEV_LOGS/shell.log" 2>&1 &
   pids+=($!)
 
-  if [[ -n $screenshot ]]; then
+  if [[ -n $screenshot || -n $check ]]; then
     sleep "$after"
-    import -window root "$screenshot"
-    echo "Screenshot: $screenshot"
+    if [[ -n $screenshot ]]; then
+      import -window root "$screenshot"
+      echo "Screenshot: $screenshot"
+    fi
+    if [[ -n $check ]]; then
+      # The check runs inside the live session (same DISPLAY, D-Bus, HOME and
+      # OMARCHY_PATH) and its exit status becomes oah-dev's.
+      status=0
+      "$check" || status=$?
+      exit "$status"
+    fi
     exit 0
   fi
 
@@ -77,12 +88,13 @@ fi
 # ---------------------------------------------------------------------------
 # Outer half: argument parsing, dev home, X server.
 # ---------------------------------------------------------------------------
-size=1920x1080 screenshot="" after=8 headless=0 fresh=0 theme="Tokyo Night"
+size=1920x1080 screenshot="" check="" after=8 headless=0 fresh=0 theme="Tokyo Night"
 while (( $# )); do
   case "$1" in
     --size) size=$2; shift 2 ;;
     --screenshot) screenshot=$(readlink -f -- "$2"); shift 2 ;;
     --after) after=$2; shift 2 ;;
+    --check) check=$(readlink -f -- "$2"); [[ -x $check ]] || oah_die "--check script isn't executable: $2"; shift 2 ;;
     --headless) headless=1; shift ;;
     --fresh) fresh=1; shift ;;
     --theme) theme=$2; shift 2 ;;
@@ -188,4 +200,4 @@ for _ in {1..50}; do
 done
 
 echo "OAH dev session on $display (logs: $DEV_LOGS)"
-dev_env DISPLAY="$display" dbus-run-session -- "$SELF" --inner "$screenshot" "$after"
+dev_env DISPLAY="$display" dbus-run-session -- "$SELF" --inner "$screenshot" "$after" "$check"

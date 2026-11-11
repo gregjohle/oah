@@ -1,0 +1,5 @@
+# Smoke checks known to fail (see test/smoke-checks.sh). Regenerate with:
+#   test/smoke --update-baseline
+bar-geometry
+bar-strut
+no-qml-load-errors

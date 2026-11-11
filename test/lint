@@ -1,0 +1,93 @@
+#!/bin/bash
+# Layer 1: static checks on everything OAH writes.
+#   - bash -n and shellcheck (warnings and up) on every shell script
+#   - qmllint syntax check on OAH's ported QML (shell/), once it exists:
+#     files changed on this branch by default, every file with --all
+# Upstream files are never linted here; their quality is upstream's concern.
+#
+# Usage: test/lint [--all]
+
+set -uo pipefail
+
+OAH_ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
+cd "$OAH_ROOT" || exit 1
+
+all_qml=0
+case "${1:-}" in
+  --all) all_qml=1 ;;
+  "") ;;
+  *) echo "Usage: test/lint [--all]" >&2; exit 2 ;;
+esac
+
+# Shell scripts: anything with a sh/bash shebang, plus bspwmrc and *.sh,
+# outside vendored/generated areas.
+mapfile -t scripts < <(
+  git ls-files --cached --others --exclude-standard -- . ':!:themes/**' ':!:shell/**' |
+    while IFS= read -r f; do
+      [[ -s $f ]] || continue  # empty placeholders (e.g. future installers) aren't scripts yet
+      case "$f" in
+        *.sh | configs/bspwm/bspwmrc) printf '%s\n' "$f" ;;
+        *) head -n1 "$f" 2>/dev/null | grep -qE '^#!.*\b(ba)?sh\b' && printf '%s\n' "$f" ;;
+      esac
+    done | sort -u
+)
+
+failed=0
+
+for f in "${scripts[@]}"; do
+  bash -n "$f" || { echo "not ok - bash -n $f"; failed=1; }
+done
+echo "ok - bash -n on ${#scripts[@]} scripts$( ((failed)) && echo ' (failures above)')"
+
+if command -v shellcheck >/dev/null 2>&1; then
+  if shellcheck -x -S warning "${scripts[@]}"; then
+    echo "ok - shellcheck on ${#scripts[@]} scripts"
+  else
+    echo "not ok - shellcheck"
+    failed=1
+  fi
+else
+  echo "not ok - shellcheck is not installed"
+  failed=1
+fi
+
+if [[ -d shell ]]; then
+  qmllint=$(command -v qmllint || echo /usr/lib/qt6/bin/qmllint)
+  if [[ -x $qmllint ]]; then
+    # qmllint takes minutes over the whole shell, so by default only QML this
+    # branch changed (vs main, plus uncommitted) is checked; --all checks all.
+    if (( all_qml )); then
+      mapfile -t qml < <(find shell -name '*.qml' | sort)
+    else
+      base=$(git merge-base HEAD main 2>/dev/null || git rev-parse HEAD)
+      mapfile -t qml < <(
+        { git diff --name-only --diff-filter=d "$base" -- 'shell/*.qml' 'shell/**/*.qml'
+          git ls-files --others --exclude-standard -- 'shell/*.qml' 'shell/**/*.qml'; } | sort -u
+      )
+    fi
+    if (( ${#qml[@]} == 0 )); then
+      echo "ok - qmllint # SKIP no changed QML (use --all for every file)"
+    else
+      # Quickshell types aren't visible to qmllint, and upstream QML carries
+      # style warnings that aren't ours to fix, so only syntax errors (which
+      # qmllint reports as "Warning: ... [syntax]") fail the check.
+      errors=$("$qmllint" --max-warnings -1 --import disable --unqualified disable \
+        --missing-property disable --missing-type disable --unresolved-type disable \
+        "${qml[@]}" 2>&1 | grep -E '\[syntax\]$' || true)
+      if [[ -n $errors ]]; then
+        printf '%s\n' "$errors"
+        echo "not ok - qmllint syntax"
+        failed=1
+      else
+        echo "ok - qmllint syntax on ${#qml[@]} QML file(s)"
+      fi
+    fi
+  else
+    echo "not ok - qmllint not found"
+    failed=1
+  fi
+else
+  echo "ok - qmllint # SKIP no shell/ yet"
+fi
+
+exit "$failed"

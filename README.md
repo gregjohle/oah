@@ -34,3 +34,23 @@ tools/oah-dev --fresh --theme "Gruvbox"        # reset the dev home with another
 ```
 
 The dev session is isolated from your real desktop: its own X display, its own `HOME` (`~/.cache/oah/dev-home`, seeded like a fresh Omarchy install), its own D-Bus session and its own runtime tree (`~/.cache/oah/dev-runtime`, so it never repoints an installed OAH desktop at checkout code). Logs go to `~/.local/state/oah/dev/`.
+
+## Testing
+
+Every PR runs the full suite: `test/run` (or `test/run --quick` while iterating, which skips the slow upstream layer).
+
+| Layer | Command | What it checks |
+|---|---|---|
+| Lint | `test/lint [--all]` | `bash -n` + `shellcheck` on every OAH script; `qmllint` syntax on QML changed in the branch (`--all`: every file) |
+| OAH tests | `test/oah.d/*-test.sh` | OAH's own code (runtime builder, bspwmrc, …), TAP-style like upstream's tests |
+| Smoke | `test/smoke` | Starts the whole desktop headless (Xvfb) and checks it from inside: shell running and answering IPC, bar laid out as a full-width top dock with a strut, no QML load errors, no shell window tiled by bspwm |
+| Upstream | `test/upstream` | Runs upstream Omarchy's own `test/cli` and `test/shell` suites against OAH's runtime on X11 |
+
+The smoke and upstream layers compare against baselines (`test/baselines/*.txt`) of known failures, so the port can land piece by piece:
+
+- a failure not in the baseline is a **regression** and fails the run;
+- a baseline entry that now passes **also** fails the run until it is removed (`--update-baseline`), so fixed things stay fixed.
+
+Upstream's tests run unmodified except for `test/upstream-patches/`, which make them accept an X11 display where they expect a Wayland compositor.
+
+Test dependencies (Arch): `xorg-server-xvfb xorg-xwininfo shellcheck inotify-tools patch`, plus the development dependencies above.
