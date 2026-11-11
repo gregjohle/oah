@@ -50,8 +50,12 @@ fi
 # installed tools (dictation, Docker), the keyboard (JIS) and removed
 # preinstalls, so generate them at login. bspwmrc prefers this output and
 # falls back to the committed defaults if generation fails.
-"$OAH_ROOT/tools/oah-gen-keybindings" --user ||
+if ! "$OAH_ROOT/tools/oah-gen-keybindings" --user; then
+  # Drop an earlier login's files so bspwmrc really falls back to the
+  # committed defaults instead of keeping bindings from an older release.
+  rm -f "${XDG_CONFIG_HOME:-$HOME/.config}/oah/sxhkd/"{sxhkdrc,bindings.tsv}
   echo "oah-session: generating per-user keybindings failed; using the defaults"
+fi
 
 # --- 3. Activation environment ------------------------------------------------
 dbus-update-activation-environment --systemd --all 2>/dev/null ||
