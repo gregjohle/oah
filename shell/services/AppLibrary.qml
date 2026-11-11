@@ -4,6 +4,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import qs.Commons
 import "AppSearch.js" as AppSearch
+import qs.Oah // OAH(x11): was OAH X11 stand-ins
 
 // Shared desktop-application library: the sorted entry list with hidden-entry
 // filtering, the icon fallback index, launch feedback, and entry removal.
@@ -169,13 +170,13 @@ Item {
   }
 
   function toplevelCount() {
-    try { return ToplevelManager.toplevels.values.length } catch (e) { return 0 }
+    try { return Compositor.toplevels.values.length } catch (e) { return 0 } // OAH(x11): was ToplevelManager
   }
 
   function beginLaunchFeedback(name) {
     root.launchSerial++
     root.launchToplevelCount = root.toplevelCount()
-    root.launchActiveToplevel = ToplevelManager.activeToplevel
+    root.launchActiveToplevel = Compositor.activeToplevel // OAH(x11): was ToplevelManager
     root.launchOsdMessage = name ? I18n.t("appLibrary.launching").arg(String(name)) : I18n.t("appLibrary.launchingApp")
     launchDelay.restart()
     launchTimeout.restart()
@@ -193,7 +194,7 @@ Item {
 
   function maybeFinishLaunchFeedback() {
     if (!launchDelay.running && !launchTimeout.running && !root.launchOsdOpen) return
-    if (root.toplevelCount() <= root.launchToplevelCount && ToplevelManager.activeToplevel === root.launchActiveToplevel) return
+    if (root.toplevelCount() <= root.launchToplevelCount && Compositor.activeToplevel === root.launchActiveToplevel) return // OAH(x11): was ToplevelManager
     root.closeLaunchFeedback(root.launchSerial)
   }
 
@@ -242,12 +243,12 @@ Item {
   }
 
   Connections {
-    target: ToplevelManager.toplevels
+    target: Compositor.toplevels // OAH(x11): was ToplevelManager
     function onValuesChanged() { root.maybeFinishLaunchFeedback() }
   }
 
   Connections {
-    target: ToplevelManager
+    target: Compositor // OAH(x11): was ToplevelManager
     function onActiveToplevelChanged() { root.maybeFinishLaunchFeedback() }
   }
 
@@ -255,7 +256,7 @@ Item {
     id: launchDelay
     interval: 2000
     onTriggered: {
-      if (root.toplevelCount() > root.launchToplevelCount || ToplevelManager.activeToplevel !== root.launchActiveToplevel) return
+      if (root.toplevelCount() > root.launchToplevelCount || Compositor.activeToplevel !== root.launchActiveToplevel) return // OAH(x11): was ToplevelManager
       root.launchOsdOpen = true
       Quickshell.execDetached(["omarchy-shell", "osd", "show", JSON.stringify({ icon: "󱓞", message: root.launchOsdMessage, duration: 0 })])
     }

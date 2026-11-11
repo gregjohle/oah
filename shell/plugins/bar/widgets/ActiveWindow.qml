@@ -4,13 +4,14 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Commons as Commons
 import qs.Ui
+import qs.Oah // OAH(x11): was OAH X11 stand-ins
 
 BarWidget {
   id: root
   moduleName: "omarchy.active-window"
 
 
-  readonly property var toplevel: ToplevelManager.activeToplevel
+  readonly property var toplevel: Compositor.activeToplevel // OAH(x11): was ToplevelManager
   readonly property string title: toplevel ? (toplevel.title || toplevel.appId || "") : ""
   readonly property int maxLabelWidth: Number(setting("maxWidth", 280))
 

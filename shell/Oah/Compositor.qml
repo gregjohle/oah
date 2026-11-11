@@ -51,6 +51,8 @@ Singleton {
   readonly property QtObject toplevels: QtObject { property var values: [] }
   property QtObject focusedMonitor: null
   property QtObject focusedWorkspace: null
+  // ToplevelManager.activeToplevel: the focused window, or null.
+  property QtObject activeToplevel: null
 
   component MonitorObject: QtObject {
     property int id
@@ -77,7 +79,16 @@ Singleton {
     property var lastIpcObject: ({})
   }
 
+  // Also stands in for Quickshell.Wayland's Toplevel: upstream reaches the
+  // Wayland handle as `toplevel.wayland`, and ToplevelManager's
+  // activeToplevel/toplevels are this singleton's (see the import transform).
   component ToplevelObject: QtObject {
+    id: toplevelObject
+    readonly property QtObject wayland: toplevelObject
+    // The window this one is a dialog of (WM_TRANSIENT_FOR), or null.
+    property QtObject parent: null
+    function activate() { Quickshell.execDetached(["bspc", "node", toplevelObject.address, "-f"]) }
+    function close() { Quickshell.execDetached(["bspc", "node", toplevelObject.address, "-c"]) }
     property string address
     property string title
     property string appId
@@ -193,7 +204,11 @@ Singleton {
     var extra = {}
     for (var l = 1; l < lines.length; l++) {
       var f = lines[l].split("\t")
-      if (f.length >= 3) extra[parseInt(f[0], 10)] = { pid: parseInt(f[1], 10) || -1, title: f.slice(2).join("\t") }
+      if (f.length >= 4) extra[parseInt(f[0], 10)] = {
+        pid: parseInt(f[1], 10) || -1,
+        transientFor: parseInt(f[2], 10) || 0,
+        title: f.slice(3).join("\t")
+      }
     }
 
     // Hyprland's focusHistoryID: 0 for the most recently focused window.
@@ -207,6 +222,7 @@ Singleton {
 
     var liveMonitors = {}, liveWorkspaces = {}, liveToplevels = {}
     var monitorList = [], workspaceList = [], toplevelList = []
+    var titleChanges = [], transients = []
     var focusedMonitor = null, focusedWorkspace = null
 
     for (var m = 0; m < state.monitors.length; m++) {
@@ -245,13 +261,18 @@ Singleton {
           var node = clients[c]
           var client = node.client
           var address = root.hex(node.id)
-          var info = extra[node.id] || { pid: -1, title: "" }
+          var info = extra[node.id] || { pid: -1, transientFor: 0, title: "" }
           var r = (client.state === "floating" ? client.floatingRectangle : client.tiledRectangle) || node.rectangle
           var fullscreen = client.state === "fullscreen" ? 2 : 0
           var tl = root.obtain(root.toplevelObjects, address, toplevelComponent)
           liveToplevels[address] = true
           root.set(tl, "address", address)
+          // Hyprland's windowtitlev2 (ADDRESS,TITLE) when a known window renames itself.
+          if (root.primed && tl.title !== info.title && root.knownAddresses.indexOf(address) !== -1) {
+            titleChanges.push([address.replace(/^0x/, ""), info.title].join(","))
+          }
           root.set(tl, "title", info.title)
+          transients.push([tl, info.transientFor])
           root.set(tl, "appId", client.className || "")
           root.set(tl, "workspace", ws)
           root.set(tl, "monitor", mon)
@@ -303,6 +324,15 @@ Singleton {
     if (!root.sameMembers(root.monitors.values, monitorList)) root.monitors.values = monitorList
     if (!root.sameMembers(root.workspaces.values, workspaceList)) root.workspaces.values = workspaceList
     if (!root.sameMembers(root.toplevels.values, toplevelList)) root.toplevels.values = toplevelList
+    // Dialogs point at the window they belong to (upstream's dock skips them).
+    for (var p = 0; p < transients.length; p++) {
+      var owner = transients[p][1] ? root.toplevelObjects[root.hex(transients[p][1])] : null
+      root.set(transients[p][0], "parent", owner && owner !== transients[p][0] ? owner : null)
+    }
+
+    var active = null
+    for (var a = 0; a < toplevelList.length; a++) if (toplevelList[a].activated) active = toplevelList[a]
+    root.set(root, "activeToplevel", active)
     root.set(root, "focusedMonitor", focusedMonitor)
     root.set(root, "focusedWorkspace", focusedWorkspace)
 
@@ -332,6 +362,7 @@ Singleton {
       root.emitEvent("openwindow", [w.address.replace(/^0x/, ""), w.workspace ? w.workspace.name : "", w.appId, w.title].join(","))
     }
     for (var c2 = 0; c2 < closed.length; c2++) root.emitEvent("closewindow", closed[c2].replace(/^0x/, ""))
+    for (var t2 = 0; t2 < titleChanges.length; t2++) root.emitEvent("windowtitlev2", titleChanges[t2])
   }
 
   // Addresses of the windows the last update reported, for open/close events.
@@ -365,7 +396,8 @@ Singleton {
     command: ["bash", "-c",
       "bspc wm -d | tr -d '\\n'; echo; " +
       "for n in $(bspc query -N -n .window 2>/dev/null); do " +
-      "printf '%d\\t%s\\t%s\\n' \"$n\" \"$(xdotool getwindowpid \"$n\" 2>/dev/null)\" " +
+      "t=$(xprop -id \"$n\" WM_TRANSIENT_FOR 2>/dev/null | grep -o '0x[0-9a-f]*$'); " +
+      "printf '%d\\t%s\\t%d\\t%s\\n' \"$n\" \"$(xdotool getwindowpid \"$n\" 2>/dev/null)\" \"${t:-0}\" " +
       "\"$(xdotool getwindowname \"$n\" 2>/dev/null | tr -d '\\n\\t')\"; done"]
     stdout: StdioCollector {
       waitForEnd: true
@@ -400,6 +432,23 @@ Singleton {
     }
     // bspwm restarting (bspc wm -r) ends the subscription; pick it back up.
     onExited: resubscribe.start()
+  }
+
+  // bspwm doesn't report windows renaming themselves; this does.
+  Process {
+    id: titleWatch
+    running: true
+    command: ["oah-x11-titles"]
+    stdout: SplitParser {
+      onRead: function(line) { debounce.restart() }
+    }
+    onExited: titleRewatch.start()
+  }
+
+  Timer {
+    id: titleRewatch
+    interval: 2000
+    onTriggered: titleWatch.running = true
   }
 
   Timer {

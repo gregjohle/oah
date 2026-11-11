@@ -14,6 +14,8 @@ PanelWindow has its own equivalents:
   WlrLayershell.keyboardFocus: X  -> focusable      (anything but None takes focus)
   WlrLayershell.namespace: X      -> dropped        (no X11 equivalent)
   Hyprland.<api>                  -> Compositor.<api> (shell/Oah/Compositor.qml, bspwm-backed)
+  ToplevelManager                 -> Compositor     (same toplevels/activeToplevel API)
+  IdleMonitor {                   -> OahIdleMonitor { (X11 idle time, shell/Oah/OahIdleMonitor.qml)
 
 Usage: x11-qml-transform.py FILE...   (rewrites files in place, prints a summary)
 """
@@ -86,12 +88,53 @@ def transform_hyprland(text: str) -> tuple[str, int]:
     return "".join(out), changed
 
 
+# Wayland toplevel manager and idle monitor -> OAH's X11 stand-ins in qs.Oah.
+SIMPLE_RENAMES = [
+    (re.compile(r"(?<![\w.])ToplevelManager\b"), "Compositor", "ToplevelManager"),
+    (re.compile(r"^(\s*)IdleMonitor(\s*\{)"), r"\1OahIdleMonitor\2", "IdleMonitor"),
+]
+
+
+def ensure_import(text: str) -> str:
+    """Add `import qs.Oah` after the file's last import, unless present."""
+    if COMPOSITOR_IMPORT in text:
+        return text
+    lines = text.splitlines(keepends=True)
+    last = max((i for i, l in enumerate(lines) if l.startswith("import ")), default=-1)
+    lines.insert(last + 1, f"{COMPOSITOR_IMPORT} {MARK}OAH X11 stand-ins\n")
+    return "".join(lines)
+
+
+def transform_renames(text: str) -> tuple[str, int]:
+    out, changed = [], 0
+    for line in text.splitlines(keepends=True):
+        body = line.rstrip("\n")
+        newline = "\n" if line.endswith("\n") else ""
+        if body.lstrip().startswith("//") or MARK in body:
+            out.append(line)
+            continue
+        new, names = body, []
+        for pattern, repl, name in SIMPLE_RENAMES:
+            if pattern.search(new):
+                new = pattern.sub(repl, new)
+                names.append(name)
+        if names:
+            out.append(f"{new} {MARK}{', '.join(names)}{newline}")
+            changed += 1
+        else:
+            out.append(line)
+    text = "".join(out)
+    return (ensure_import(text), changed) if changed else (text, 0)
+
+
 def strip_comment(code: str) -> str:
     return re.sub(r"\s*//.*$", "", code)
 
 
 def transform(text: str) -> tuple[str, int]:
     text, changed = transform_hyprland(text)
+    text, renamed = transform_renames(text)
+    changed += renamed
     lines = text.splitlines(keepends=True)
     out, i = [], 0
     while i < len(lines):
