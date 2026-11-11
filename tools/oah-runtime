@@ -1,0 +1,91 @@
+#!/bin/bash
+# Assemble the OMARCHY_PATH tree OAH runs from: the pinned upstream Omarchy
+# release with OAH's X11 overrides layered on top.
+#
+#   $OAH_RUNTIME/
+#     shell -> $OAH_ROOT/shell if OAH has its ported shell, else upstream's
+#     bin/     every upstream command (symlinked), with $OAH_ROOT/bin/* replacing
+#              same-named upstream commands and adding new ones
+#     *     -> every other upstream entry, symlinked as-is
+#
+# The tree is rebuilt from scratch each run and swapped in atomically, so a
+# running shell never sees a half-built tree.
+#
+# Usage: oah-runtime [--print]
+#   --print  print the runtime path after building (for scripts)
+
+set -euo pipefail
+
+source "$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")/lib/common.sh"
+
+print_path=0
+case "${1:-}" in
+  --print) print_path=1 ;;
+  "") ;;
+  -h|--help) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  *) oah_die "unknown argument: $1" ;;
+esac
+
+oah_require_upstream
+
+# Only ever replace a tree this tool built, never a directory that happens to
+# be at a mistyped OAH_RUNTIME.
+if [[ -e $OAH_RUNTIME && ! -f $OAH_RUNTIME/.oah-pin ]]; then
+  oah_die "$OAH_RUNTIME exists but wasn't built by oah-runtime (no .oah-pin); refusing to replace it"
+fi
+
+parent=$(dirname -- "$OAH_RUNTIME")
+mkdir -p "$parent"
+staging=$(mktemp -d "$parent/.runtime.XXXXXX")
+trap 'rm -rf -- "$staging"' EXIT
+chmod 755 "$staging"
+
+shopt -s dotglob nullglob
+
+for entry in "$OAH_UPSTREAM"/*; do
+  name=${entry##*/}
+  case "$name" in
+    .git | bin | shell) continue ;;
+  esac
+  ln -s -- "$entry" "$staging/$name"
+done
+
+if [[ -d $OAH_ROOT/shell ]]; then
+  ln -s -- "$OAH_ROOT/shell" "$staging/shell"
+else
+  ln -s -- "$OAH_UPSTREAM/shell" "$staging/shell"
+fi
+
+mkdir "$staging/bin"
+for cmd in "$OAH_UPSTREAM"/bin/*; do
+  ln -s -- "$cmd" "$staging/bin/${cmd##*/}"
+done
+
+overrides=0
+if [[ -d $OAH_ROOT/bin ]]; then
+  for cmd in "$OAH_ROOT"/bin/*; do
+    [[ -f $cmd ]] || continue
+    ln -sfn -- "$cmd" "$staging/bin/${cmd##*/}"
+    overrides=$((overrides + 1))
+  done
+fi
+
+printf '%s\n' "$OAH_PIN" >"$staging/.oah-pin"
+
+# Swap the new tree in. A plain mv can't replace a non-empty directory, so move
+# the old one aside first and remove it after the new one is in place.
+old=""
+if [[ -e $OAH_RUNTIME || -L $OAH_RUNTIME ]]; then
+  old=$(mktemp -u "$parent/.runtime-old.XXXXXX")
+  mv -T -- "$OAH_RUNTIME" "$old"
+fi
+mv -T -- "$staging" "$OAH_RUNTIME"
+trap - EXIT
+[[ -n $old ]] && rm -rf -- "$old"
+
+if (( print_path )); then
+  printf '%s\n' "$OAH_RUNTIME"
+else
+  printf 'Runtime ready: %s (Omarchy %s, %d OAH command override(s), shell from %s)\n' \
+    "$OAH_RUNTIME" "$OAH_PIN" "$overrides" "$(readlink "$OAH_RUNTIME/shell")"
+fi
