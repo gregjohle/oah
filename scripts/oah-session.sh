@@ -4,7 +4,8 @@
 # an Omarchy session, on X11 with bspwm.
 #
 #   1. Build the OMARCHY_PATH runtime tree and put its commands on PATH.
-#   2. Seed $HOME on first login the way Omarchy's installer does.
+#   2. Seed $HOME on first login the way Omarchy's installer does, and
+#      generate this user's keybindings.
 #   3. Export the session environment to D-Bus/systemd activation.
 #   4. Start bspwm; once it owns the root window, start the panel-stacking
 #      helper, picom and the Omarchy shell (via upstream's supervisor,
@@ -43,6 +44,17 @@ export PATH="$OMARCHY_PATH/bin:$PATH"
 
 if [[ -f $HOME/.Xresources ]]; then
   xrdb -merge "$HOME/.Xresources"
+fi
+
+# Keybindings for this user and machine: upstream decides some bindings from
+# installed tools (dictation, Docker), the keyboard (JIS) and removed
+# preinstalls, so generate them at login. bspwmrc prefers this output and
+# falls back to the committed defaults if generation fails.
+if ! "$OAH_ROOT/tools/oah-gen-keybindings" --user; then
+  # Drop an earlier login's files so bspwmrc really falls back to the
+  # committed defaults instead of keeping bindings from an older release.
+  rm -f "${XDG_CONFIG_HOME:-$HOME/.config}/oah/sxhkd/"{sxhkdrc,bindings.tsv}
+  echo "oah-session: generating per-user keybindings failed; using the defaults"
 fi
 
 # --- 3. Activation environment ------------------------------------------------
