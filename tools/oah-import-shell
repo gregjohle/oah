@@ -1,0 +1,34 @@
+#!/bin/bash
+# Create oah/shell from the pinned upstream shell: copy it, then apply the
+# scripted Wayland -> X11 rewrites (tools/lib/x11-qml-transform.py).
+#
+# This is the first step of the port and of every upstream upgrade. Hand-made
+# X11 changes are committed on top of the result; the upgrade tool merges
+# them into the next release's freshly imported shell.
+#
+# Usage: oah-import-shell [--to DIR]
+#   --to DIR  write the imported shell to DIR instead of oah/shell (DIR must
+#             not exist); used to produce a merge base during upgrades
+
+set -euo pipefail
+
+source "$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")/lib/common.sh"
+
+dest=$OAH_ROOT/shell
+case "${1:-}" in
+  --to) [[ -n ${2:-} ]] || oah_die "--to needs a directory"; dest=$2 ;;
+  "") ;;
+  -h|--help) oah_help "$0"; exit 0 ;;
+  *) oah_die "unknown argument: $1" ;;
+esac
+
+oah_require_upstream
+[[ ! -e $dest ]] || oah_die "$dest already exists; the import only creates a fresh tree (upgrades merge into an existing one)"
+
+cp -a "$OAH_UPSTREAM/shell" "$dest"
+printf '%s\n' "$OAH_PIN" >"$dest/.oah-upstream"
+
+mapfile -d '' -t qml < <(find "$dest" -name '*.qml' -print0)
+python3 "$OAH_ROOT/tools/lib/x11-qml-transform.py" "${qml[@]}"
+
+echo "Imported upstream shell ($OAH_PIN) into $dest"

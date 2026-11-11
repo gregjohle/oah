@@ -126,8 +126,8 @@ PanelWindow {
   color: "transparent"
   exclusionMode: ExclusionMode.Ignore
 
-  WlrLayershell.namespace: "omarchy-keyboard-panel"
-  WlrLayershell.layer: WlrLayer.Overlay
+  // OAH(x11): was WlrLayershell.namespace: "omarchy-keyboard-panel"
+  aboveWindows: true // OAH(x11): was WlrLayershell.layer: WlrLayer.Overlay
   // Keyboard focus follows `open` (NOT `visible`). The window remains
   // mapped during the fade-out so the opacity animation has something to
   // animate, but keyboard/click ownership must release the moment the
@@ -139,7 +139,7 @@ PanelWindow {
   // focus when the previously focused application has constrained the pointer.
   // The brief prime covers both cases; OnDemand then releases compositor-wide
   // pointer hit-testing so clicks can reach the dismissal windows below.
-  WlrLayershell.keyboardFocus: open
+  focusable: (open) != WlrKeyboardFocus.None // OAH(x11): was WlrLayershell.keyboardFocus: open
     ? (focusPrimed ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.Exclusive)
     : WlrKeyboardFocus.None
 
@@ -480,9 +480,9 @@ PanelWindow {
         color: "transparent"
         exclusionMode: ExclusionMode.Ignore
 
-        WlrLayershell.namespace: "omarchy-keyboard-panel-dismiss"
-        WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+        // OAH(x11): was WlrLayershell.namespace: "omarchy-keyboard-panel-dismiss"
+        aboveWindows: true // OAH(x11): was WlrLayershell.layer: WlrLayer.Overlay
+        focusable: false // OAH(x11): was WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
         anchors {
           top: true

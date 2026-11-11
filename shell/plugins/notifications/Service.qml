@@ -1512,10 +1512,10 @@ Item {
       visible: !stepAside || hasSomethingToShow
       color: "transparent"
 
-      WlrLayershell.namespace: "omarchy-notifications"
-      WlrLayershell.layer: WlrLayer.Overlay
+      // OAH(x11): was WlrLayershell.namespace: "omarchy-notifications"
+      aboveWindows: true // OAH(x11): was WlrLayershell.layer: WlrLayer.Overlay
       readonly property bool takesKeyboard: service.keyboardMode && service.targetDisplayName === String(modelData.name)
-      WlrLayershell.keyboardFocus: takesKeyboard ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+      focusable: (takesKeyboard ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None) != WlrKeyboardFocus.None // OAH(x11): was WlrLayershell.keyboardFocus: takesKeyboard ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
       exclusionMode: ExclusionMode.Ignore
 
       // Constant width and full height, so the buffer is allocated once.

@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+"""Keep the Omarchy shell's X11 panels in their layers.
+
+On Wayland, Hyprland's layer-shell puts the wallpaper on the Background layer
+and the bar, menus, OSD and notifications on the Top/Overlay layers, whatever
+order they map in. On X11 the shell's panels are unmanaged dock windows that
+only *ask* to be kept below/above (_NET_WM_STATE_BELOW/_ABOVE); bspwm, like
+most X11 window managers, doesn't restack windows it doesn't manage. So a
+wallpaper that maps after the bar covers it, and a new app window covers
+the bar's popups.
+
+This daemon watches the root window and restores the order whenever it's
+wrong: shell dock windows asking to be below go to the bottom, those asking
+to be above go to the top, keeping their relative order. It never touches
+windows bspwm manages, and only restacks when the order is actually wrong, so
+its own restacking can't loop.
+
+Usage: oah-x11-stacking [--once]
+  --once  fix the stacking once and exit (for tests)
+"""
+
+import sys
+
+from Xlib import X, Xatom, display, error
+
+
+def main() -> int:
+    once = "--once" in sys.argv[1:]
+    d = display.Display()
+    root = d.screen().root
+
+    atom = lambda name: d.intern_atom(name)
+    WM_STATE = atom("_NET_WM_STATE")
+    BELOW = atom("_NET_WM_STATE_BELOW")
+    ABOVE = atom("_NET_WM_STATE_ABOVE")
+    WM_TYPE = atom("_NET_WM_WINDOW_TYPE")
+    DOCK = atom("_NET_WM_WINDOW_TYPE_DOCK")
+
+    def atoms(w, prop):
+        try:
+            p = w.get_full_property(prop, Xatom.ATOM)
+        except error.XError:
+            return ()
+        return tuple(p.value) if p else ()
+
+    def mapped(w):
+        try:
+            return w.get_attributes().map_state == X.IsViewable
+        except error.XError:
+            return False
+
+    def enforce():
+        try:
+            children = root.query_tree().children  # bottom -> top
+        except error.XError:
+            return
+        windows = [w for w in children if mapped(w)]
+        docks = {w.id for w in windows if DOCK in atoms(w, WM_TYPE)}
+        below = [w for w in windows if w.id in docks and BELOW in atoms(w, WM_STATE)]
+        above = [w for w in windows if w.id in docks and ABOVE in atoms(w, WM_STATE)]
+        below_ids, above_ids = {w.id for w in below}, {w.id for w in above}
+
+        order = [w.id for w in windows]
+        others = [i for i in order if i not in below_ids and i not in above_ids]
+        desired = [w.id for w in below] + others + [w.id for w in above]
+        if order == desired:
+            return
+
+        try:
+            # Lowering in reverse keeps the below-windows' relative order;
+            # raising in order keeps the above-windows'.
+            for w in reversed(below):
+                w.configure(stack_mode=X.Below)
+            for w in above:
+                w.configure(stack_mode=X.Above)
+            d.sync()
+        except error.XError:
+            pass  # a window vanished mid-restack; the next event retries
+
+    root.change_attributes(event_mask=X.SubstructureNotifyMask)
+    enforce()
+    if once:
+        return 0
+
+    while True:
+        event = d.next_event()
+        # Coalesce a burst of map/restack events into one check.
+        while d.pending_events():
+            d.next_event()
+        if event.type in (X.MapNotify, X.ConfigureNotify, X.CirculateNotify, X.ReparentNotify):
+            enforce()
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        sys.exit(0)

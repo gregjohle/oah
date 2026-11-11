@@ -1273,7 +1273,7 @@ Item {
   OverlayWindow {
     id: panel
     shown: root.opened && root.rowsLoaded
-    WlrLayershell.namespace: "omarchy-menu"
+    // OAH(x11): was WlrLayershell.namespace: "omarchy-menu"
 
     // The card opens centered exactly as always. The first search keystroke
     // or submenu move freezes the top line where it currently sits — from

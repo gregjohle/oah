@@ -537,9 +537,9 @@ Item {
     visible: root.previewVisible
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
-    WlrLayershell.namespace: "omarchy-lock-preview"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+    // OAH(x11): was WlrLayershell.namespace: "omarchy-lock-preview"
+    aboveWindows: true // OAH(x11): was WlrLayershell.layer: WlrLayer.Overlay
+    focusable: true // OAH(x11): was WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     exclusionMode: ExclusionMode.Ignore
 
     LockView {

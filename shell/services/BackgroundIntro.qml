@@ -249,9 +249,9 @@ Item {
       mask: Region {}
       anchors { top: true; bottom: true; left: true; right: true }
       exclusionMode: ExclusionMode.Ignore
-      WlrLayershell.layer: WlrLayer.Overlay
-      WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-      WlrLayershell.namespace: "omarchy-background"
+      aboveWindows: true // OAH(x11): was WlrLayershell.layer: WlrLayer.Overlay
+      focusable: false // OAH(x11): was WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+      // OAH(x11): was WlrLayershell.namespace: "omarchy-background"
 
       Rectangle {
         anchors.fill: parent
@@ -287,9 +287,9 @@ Item {
       mask: Region {}
       anchors { top: true; bottom: true; left: true; right: true }
       exclusionMode: ExclusionMode.Ignore
-      WlrLayershell.layer: WlrLayer.Bottom
-      WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-      WlrLayershell.namespace: "omarchy-background"
+      aboveWindows: false // OAH(x11): was WlrLayershell.layer: WlrLayer.Bottom
+      focusable: false // OAH(x11): was WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+      // OAH(x11): was WlrLayershell.namespace: "omarchy-background"
 
       Rectangle {
         anchors.fill: parent

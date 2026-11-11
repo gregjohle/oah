@@ -406,9 +406,9 @@ Item {
         })
       }
 
-      WlrLayershell.namespace: "omarchy-background"
-      WlrLayershell.layer: WlrLayer.Background
-      WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+      // OAH(x11): was WlrLayershell.namespace: "omarchy-background"
+      aboveWindows: false // OAH(x11): was WlrLayershell.layer: WlrLayer.Background
+      focusable: false // OAH(x11): was WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
       exclusionMode: ExclusionMode.Ignore
 
       // OWE owns video backgrounds. This layer draws stills, and stays empty

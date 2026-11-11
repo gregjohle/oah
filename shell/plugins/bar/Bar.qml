@@ -1795,8 +1795,8 @@ Item {
     implicitHeight: root.vertical ? 0 : (screen ? screen.height : thickness)
     color: "transparent"
     surfaceFormat.opaque: false
-    WlrLayershell.namespace: "omarchy-bar"
-    WlrLayershell.layer: WlrLayer.Top
+    // OAH(x11): was WlrLayershell.namespace: "omarchy-bar"
+    aboveWindows: true // OAH(x11): was WlrLayershell.layer: WlrLayer.Top
 
     // Whether the active workspace on this screen holds a real fullscreen
     // window, which fades the bar out.
@@ -2027,9 +2027,9 @@ Item {
     visible: (active && sourceItem !== null) || poofShown
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.namespace: "omarchy-bar-drag-ghost"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+    // OAH(x11): was WlrLayershell.namespace: "omarchy-bar-drag-ghost"
+    aboveWindows: true // OAH(x11): was WlrLayershell.layer: WlrLayer.Overlay
+    focusable: false // OAH(x11): was WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
     anchors {
       top: true
@@ -2221,9 +2221,9 @@ Item {
     visible: root.barMoveActive && root.sameScreen(root.barMoveScreen, ghostScreen)
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.namespace: "omarchy-bar-move-ghost"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+    // OAH(x11): was WlrLayershell.namespace: "omarchy-bar-move-ghost"
+    aboveWindows: true // OAH(x11): was WlrLayershell.layer: WlrLayer.Overlay
+    focusable: false // OAH(x11): was WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
     anchors {
       top: true

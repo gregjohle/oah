@@ -228,9 +228,9 @@ Item {
     visible: root.dialogVisible
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
-    WlrLayershell.namespace: "omarchy-polkit"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+    // OAH(x11): was WlrLayershell.namespace: "omarchy-polkit"
+    aboveWindows: true // OAH(x11): was WlrLayershell.layer: WlrLayer.Overlay
+    focusable: true // OAH(x11): was WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     exclusionMode: ExclusionMode.Ignore
 
     Rectangle {

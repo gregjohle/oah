@@ -322,7 +322,7 @@ Item {
   OverlayWindow {
     id: panel
     shown: root.opened
-    WlrLayershell.namespace: "omarchy-clipboard"
+    // OAH(x11): was WlrLayershell.namespace: "omarchy-clipboard"
 
     Rectangle {
       anchors.fill: parent

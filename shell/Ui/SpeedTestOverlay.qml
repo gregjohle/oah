@@ -89,9 +89,9 @@ PanelWindow {
   anchors { top: true; bottom: true; left: true; right: true }
   color: "transparent"
   exclusionMode: ExclusionMode.Ignore
-  WlrLayershell.namespace: root.layerNamespace
-  WlrLayershell.layer: WlrLayer.Overlay
-  WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+  // OAH(x11): was WlrLayershell.namespace: root.layerNamespace
+  aboveWindows: true // OAH(x11): was WlrLayershell.layer: WlrLayer.Overlay
+  focusable: true // OAH(x11): was WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
 
   // Deep scrim: with no card behind them, the floating dials need the
   // backdrop to carry the contrast on any wallpaper, like the near-black

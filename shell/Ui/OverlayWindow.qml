@@ -77,8 +77,8 @@ PanelWindow {
   anchors { top: true; left: true; bottom: true; right: true }
   color: "transparent"
   exclusionMode: ExclusionMode.Ignore
-  WlrLayershell.layer: shownLayer
-  WlrLayershell.keyboardFocus: shownKeyboardFocus
+  aboveWindows: (shownLayer) === WlrLayer.Top || (shownLayer) === WlrLayer.Overlay // OAH(x11): was WlrLayershell.layer: shownLayer
+  focusable: (shownKeyboardFocus) != WlrKeyboardFocus.None // OAH(x11): was WlrLayershell.keyboardFocus: shownKeyboardFocus
 
   // Opacity preserves keyboard handling while the scale arrives, including
   // search keystrokes and Escape pressed immediately after opening.

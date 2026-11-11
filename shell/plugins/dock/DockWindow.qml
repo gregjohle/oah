@@ -191,9 +191,9 @@ PanelWindow {
 
   visible: !remapGuard.remapping
   color: "transparent"
-  WlrLayershell.namespace: "omarchy-dock"
-  WlrLayershell.layer: WlrLayer.Top
-  WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+  // OAH(x11): was WlrLayershell.namespace: "omarchy-dock"
+  aboveWindows: true // OAH(x11): was WlrLayershell.layer: WlrLayer.Top
+  focusable: false // OAH(x11): was WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
   // Kept clear of the bar's reserved edge, without reserving one of its own:
   // floating windows go where they are put.
   exclusionMode: ExclusionMode.Normal
