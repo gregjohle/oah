@@ -1,20 +1,23 @@
 #!/bin/bash
 # Seed $HOME the way an Omarchy install seeds a new user, without overwriting
 # anything that's already there:
-#   - upstream's shipped user configs (config/ -> ~/.config), like /etc/skel
+#   - upstream's shipped configs for the Omarchy desktop (once; see below)
 #   - the package fontconfig defaults (50-omarchy.conf)
-#   - the default monospace font (omarchy-font-set)
+#   - the default monospace font (fontconfig only, as omarchy-font-set writes it)
 #   - the default theme (omarchy-theme-set, headless)
 #
 # Used by the session on first login, by oah-dev for its dev home, and by the
-# installer. Each step is skipped when its result already exists, so running
-# it again is safe.
+# installer. Each step checks its own result and runs independently, so a
+# failing step can't stop the others, and running it again is safe.
+#
+# Upstream's scripts always use ~/.config and ~/.local/state (not
+# XDG_CONFIG_HOME/XDG_STATE_HOME), so this checks the same places.
 #
 # Requires OMARCHY_PATH (the runtime tree) and its bin/ on PATH.
 #
 # Usage: oah-seed-home [--theme NAME]   (default theme: "Tokyo Night")
 
-set -euo pipefail
+set -uo pipefail
 
 theme="Tokyo Night"
 case "${1:-}" in
@@ -24,33 +27,77 @@ case "${1:-}" in
 esac
 
 : "${OMARCHY_PATH:?OMARCHY_PATH must point at the OAH runtime tree}"
-config=${XDG_CONFIG_HOME:-$HOME/.config}
-state=${XDG_STATE_HOME:-$HOME/.local/state}
+config=$HOME/.config
+state=$HOME/.local/state
+marker=$state/oah/configs-seeded
+status=0
 
-mkdir -p "$config/omarchy/themes" "$config/fontconfig/conf.d"
+mkdir -p "$config/omarchy/themes" "$config/fontconfig/conf.d" "$state/oah"
 
-# Shipped configs: copy what's missing, never replace a user's file.
-cp -an "$OMARCHY_PATH/config/." "$config/"
+# --- Shipped configs, once -----------------------------------------------------
+# Only what the Omarchy desktop itself reads (its shell config and the themed
+# apps' configs), copied without replacing existing files, and only on the
+# first run: a file the user later deletes stays deleted. Left out on
+# purpose, because they'd change the user's other desktops or are Wayland/
+# Hyprland-only: chromium-flags.conf (--ozone-platform=wayland), git/
+# (pull.rebase, rerere), autostart/ (Hidden=true entries), wireplumber/,
+# hypr/, xdg-desktop-portal/, hyprland-*, fcitx5/, opencode/, herdr/.
+SEED_CONFIGS=(omarchy alacritty btop foot ghostty imv kitty lazygit tmux starship.toml)
+if [[ ! -e $marker ]]; then
+  for item in "${SEED_CONFIGS[@]}"; do
+    [[ -e $OMARCHY_PATH/config/$item ]] || continue
+    cp -an "$OMARCHY_PATH/config/$item" "$config/" || status=1
+  done
+  touch "$marker"
+fi
 
+# --- Fontconfig -----------------------------------------------------------------
 if [[ ! -e $config/fontconfig/conf.d/50-omarchy.conf ]]; then
-  cp "$OMARCHY_PATH/default/fontconfig/conf.avail/50-omarchy.conf" "$config/fontconfig/conf.d/"
+  cp "$OMARCHY_PATH/default/fontconfig/conf.avail/50-omarchy.conf" "$config/fontconfig/conf.d/" || status=1
 fi
 
-# omarchy-font-set and omarchy-theme-set notify and restart a running
-# session, and font-set signals running terminals (pkill -USR1 kitty, ...).
-# None of that belongs to seeding: those processes may be another session's.
-stubs=$(mktemp -d)
-trap 'rm -rf -- "$stubs"' EXIT
-for stub in omarchy-restart-shell omarchy-hook omarchy-notification-send pkill killall; do
-  printf '#!/bin/sh\nexit 0\n' >"$stubs/$stub"
-  chmod +x "$stubs/$stub"
-done
-
-if [[ ! -f $config/fontconfig/fonts.conf ]]; then
-  PATH="$stubs:$PATH" omarchy-font-set "JetBrainsMono Nerd Font" >/dev/null
+# The default monospace font, written the way omarchy-font-set writes it. The
+# command itself also rewrites existing terminal configs, which seeding must
+# not do, so only its fontconfig part is reproduced here.
+font="JetBrainsMono Nerd Font"
+if [[ ! -e $config/fontconfig/fonts.conf ]]; then
+  # Not grep -q: it exits at the first match and, with pipefail, the
+  # SIGPIPE it gives fc-list would read as "not installed".
+  if fc-list : family | grep -Fi -- "$font" >/dev/null; then
+    cat >"$config/fontconfig/fonts.conf" <<XML
+<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+<fontconfig>
+  <match target="pattern">
+    <test name="family" qual="any">
+      <string>monospace</string>
+    </test>
+    <edit name="family" mode="prepend_first" binding="strong">
+      <string>$font</string>
+    </edit>
+  </match>
+</fontconfig>
+XML
+  else
+    echo "oah-seed-home: font '$font' isn't installed; leaving the monospace font alone" >&2
+  fi
 fi
 
+# --- Default theme --------------------------------------------------------------
+# omarchy-theme-set notifies and restarts a running session (none exists yet),
+# so those side effects are stubbed for this call.
 if [[ ! -s $state/omarchy/current/theme.name ]]; then
+  stubs=$(mktemp -d)
+  for stub in omarchy-restart-shell omarchy-hook omarchy-notification-send pkill killall; do
+    printf '#!/bin/sh\nexit 0\n' >"$stubs/$stub"
+    chmod +x "$stubs/$stub"
+  done
   PATH="$stubs:$PATH" OMARCHY_THEME_HEADLESS=1 omarchy-theme-set "$theme" >/dev/null
-  [[ -s $state/omarchy/current/theme.name ]] || { echo "oah-seed-home: seeding the theme failed" >&2; exit 1; }
+  rm -rf -- "$stubs"
+  if [[ ! -s $state/omarchy/current/theme.name ]]; then
+    echo "oah-seed-home: seeding the theme failed" >&2
+    status=1
+  fi
 fi
+
+exit "$status"

@@ -61,8 +61,12 @@ trap cleanup EXIT
 bspwm -c "$OAH_ROOT/configs/bspwm/bspwmrc" >>"$LOGS/bspwm.log" 2>&1 &
 wm=$!
 
-for _ in {1..100}; do
-  xprop -root _NET_SUPPORTING_WM_CHECK >/dev/null 2>&1 && break
+# Wait until bspwm answers on its socket (xprop exits 0 even while the WM
+# property is still missing, so it can't be used for this); give up if
+# bspwm died.
+for _ in {1..200}; do
+  bspc wm -g >/dev/null 2>&1 && break
+  kill -0 "$wm" 2>/dev/null || { echo "oah-session: bspwm exited during startup"; exit 1; }
   sleep 0.05
 done
 
@@ -95,7 +99,10 @@ start_picom
 # Upstream's shell supervisor: relaunches the shell if it dies.
 start shell omarchy-launch-shell
 
-# Upstream autostart items that work unchanged on X11.
+# Upstream autostart items (default/hypr/autostart.lua) that work unchanged on
+# X11. Not started yet: omarchy-provision-first-run (first-run setup, comes
+# with the installer), omarchy-hyprland-monitor-watch (Hyprland monitor
+# events; Deferred until the X11 hotplug port) and `herdr server`.
 command -v udiskie >/dev/null && start udiskie udiskie --automount --no-notify --no-tray
 command -v omarchy-powerprofiles-init >/dev/null && start powerprofiles omarchy-powerprofiles-init
 (sleep 2 && omarchy-hook post-boot) >>"$LOGS/hooks.log" 2>&1 &
