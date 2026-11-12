@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+"""Generate OAH's window rules from upstream Omarchy's Hyprland window rules.
+
+Runs upstream's default/hypr/windows.lua (which loads every
+default/hypr/apps/*.lua) through tools/lib/collect-window-rules.lua, which
+records every hl.window_rule() call, and writes them in order to
+
+  configs/bspwm/window-rules.json
+
+bin/oah-x11-window-rules (bspwm's external_rules_command) applies them as
+each window maps. Re-run on every upstream release.
+
+Usage: oah-gen-window-rules
+"""
+
+import json
+import os
+import shutil
+import subprocess
+import sys
+
+ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+OUT = os.path.join(ROOT, "configs", "bspwm", "window-rules.json")
+
+
+def main():
+    lua = next((l for l in ("lua5.4", "lua", "luajit") if shutil.which(l)), None)
+    if not lua:
+        sys.exit("oah-gen-window-rules: needs lua (lua5.4)")
+
+    env = dict(os.environ, OMARCHY_PATH=ROOT)
+    r = subprocess.run([lua, os.path.join(ROOT, "tools", "lib", "collect-window-rules.lua"), ROOT],
+                       capture_output=True, text=True, env=env)
+    if r.returncode != 0:
+        sys.stderr.write(r.stderr)
+        sys.exit(f"oah-gen-window-rules: {lua} failed (exit {r.returncode})")
+
+    rules = [json.loads(line) for line in r.stdout.splitlines() if line.strip()]
+    with open(os.path.join(ROOT, "UPSTREAM")) as f:
+        upstream = f.read().split()[0]
+    doc = {
+        "generated_by": f"tools/oah-gen-window-rules from upstream default/hypr/windows.lua ({upstream}). Do not edit; re-run the generator.",
+        "rules": rules,
+    }
+    tmp = f"{OUT}.tmp.{os.getpid()}"
+    with open(tmp, "w") as f:
+        f.write("{\n")
+        f.write(f'  "generated_by": {json.dumps(doc["generated_by"], ensure_ascii=False)},\n')
+        f.write('  "rules": [\n')
+        f.write(",\n".join("    " + json.dumps(rule, ensure_ascii=False) for rule in rules))
+        f.write("\n  ]\n}\n")
+    os.replace(tmp, OUT)
+    print(f"oah-gen-window-rules: {len(rules)} rules -> {os.path.relpath(OUT, ROOT)}")
+
+
+if __name__ == "__main__":
+    main()
