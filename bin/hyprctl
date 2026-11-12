@@ -12,12 +12,13 @@ Hyprland's output shapes and exit codes, so upstream code keeps working:
   switchxkblayout <kbd|all> next|prev|N
   hyprsunset temperature [K] | identity     night light via xrandr gamma
   keyword monitor NAME,disable|NAME,...     via xrandr
+  eval 'hl.monitor({ output = NAME, disabled = true|false })'   via xrandr
   reload                        apply the current theme's border colours to bspwm
   cursorpos, version
 
 A dispatch that fails, or a window selector that matches nothing, exits 1
 like Hyprland. Anything without a ready X11 equivalent (window groups, the
-scratchpad and other special workspaces, `eval`, window tags/props) exits 1
+scratchpad and other special workspaces, any other `eval`, window tags/props) exits 1
 with "unsupported" on stderr; those features are on OAH's Deferred list.
 """
 
@@ -100,13 +101,15 @@ def leaves(node):
 
 
 def xrandr_outputs():
-    """{name: {"connected": bool, "active": bool, "rate": float}} from xrandr."""
+    """{name: {"connected", "active", "rate", and width/height/x/y when active}} from xrandr."""
     outputs, current = {}, None
     for line in out("xrandr", "--query").splitlines():
-        m = re.match(r"^(\S+) (connected|disconnected)( primary)?( \d+x\d+\+\d+\+\d+)?", line)
+        m = re.match(r"^(\S+) (connected|disconnected)( primary)?(?: (\d+)x(\d+)\+(\d+)\+(\d+))?", line)
         if m:
             current = m.group(1)
             outputs[current] = {"connected": m.group(2) == "connected", "active": bool(m.group(4)), "rate": 60.0}
+            if m.group(4):
+                outputs[current].update(zip(("width", "height", "x", "y"), map(int, m.group(4, 5, 6, 7))))
             continue
         if current:
             r = re.search(r"(\d+(?:\.\d+)?)\*", line)
@@ -126,17 +129,21 @@ def collect(state, include_disabled=False):
             history[nid] = order
             order += 1
 
-    monitors, workspaces, clients = [], [], []
+    monitors, workspaces, clients, disabled_bspwm = [], [], [], []
     focused_client = None
     for mi, m in enumerate(state.get("monitors", [])):
         rect = m["rectangle"]
-        focused_mon = m["id"] == state.get("focusedMonitorId")
+        # bspwm keeps a switched-off output as a monitor (remove_disabled_monitors
+        # is off), so xrandr decides whether it is enabled.
+        out_state = outputs.get(m["name"], {})
+        off = out_state.get("connected", False) and not out_state.get("active", True)
+        focused_mon = m["id"] == state.get("focusedMonitorId") and not off
         mon = {
             "id": mi, "name": m["name"], "description": m["name"], "make": "", "model": "", "serial": "",
             "width": rect["width"], "height": rect["height"],
             "refreshRate": outputs.get(m["name"], {}).get("rate", 60.0),
             "x": rect["x"], "y": rect["y"], "scale": 1.0, "transform": 0,
-            "focused": focused_mon, "dpmsStatus": True, "vrr": False, "disabled": False,
+            "focused": focused_mon, "dpmsStatus": True, "vrr": False, "disabled": False, "mirrorOf": "none",
             "reserved": [m["padding"]["left"], m["padding"]["top"], m["padding"]["right"], m["padding"]["bottom"]],
             "activeWorkspace": {"id": -1, "name": ""}, "specialWorkspace": {"id": 0, "name": ""},
         }
@@ -174,17 +181,24 @@ def collect(state, include_disabled=False):
                 mon["activeWorkspace"] = {"id": ws_id, "name": d["name"]}
             if active or ws["windows"]:
                 workspaces.append(ws)
+        if off:
+            # Listed (by `monitors all`) only as disabled, like Hyprland.
+            if include_disabled:
+                mon.update({"width": 0, "height": 0, "x": 0, "y": 0, "dpmsStatus": False, "disabled": True})
+                disabled_bspwm.append(mon)
+            continue
         monitors.append(mon)
 
     if include_disabled:
         # `monitors all` also lists connected outputs that are switched off.
+        monitors.extend(disabled_bspwm)
         known = {m["name"] for m in monitors}
         for name, o in outputs.items():
             if o["connected"] and not o["active"] and name not in known:
                 monitors.append({
                     "id": len(monitors), "name": name, "description": name, "make": "", "model": "", "serial": "",
                     "width": 0, "height": 0, "refreshRate": o["rate"], "x": 0, "y": 0, "scale": 1.0,
-                    "transform": 0, "focused": False, "dpmsStatus": False, "vrr": False, "disabled": True,
+                    "transform": 0, "focused": False, "dpmsStatus": False, "vrr": False, "disabled": True, "mirrorOf": "none",
                     "reserved": [0, 0, 0, 0], "activeWorkspace": {"id": -1, "name": ""},
                     "specialWorkspace": {"id": 0, "name": ""},
                 })
@@ -213,6 +227,15 @@ def lua_string(token):
         return body.replace('\\"', '"').replace("\\\\", "\\")
 
 
+def lua_table(body):
+    """`{ key = "value", flag = true }` -> {"key": "value", "flag": "true"} (flat tables only)."""
+    args = {}
+    for m in re.finditer(r'(?P<key>\w+)\s*=\s*(?P<value>' + LUA_STRING + r'|[\w.+\-:]+)', body, re.S):
+        value = m.group("value")
+        args[m.group("key")] = lua_string(value) if value[0] in "\"'[" else value
+    return args
+
+
 def parse_call(expr):
     """`hl.dsp.window.move({ workspace = "3", follow = false })` -> ("window.move", args, positional)."""
     m = re.match(r"\s*hl\.dsp\.([\w.]+)\s*\((.*)\)\s*$", expr, re.S)
@@ -221,9 +244,7 @@ def parse_call(expr):
     name, body = m.group(1), m.group(2).strip()
     args, positional = {}, []
     if body.startswith("{"):
-        for m2 in re.finditer(r'(?P<key>\w+)\s*=\s*(?P<value>' + LUA_STRING + r'|[\w.+\-:]+)', body, re.S):
-            value = m2.group("value")
-            args[m2.group("key")] = lua_string(value) if value[0] in "\"'[" else value
+        args = lua_table(body)
     else:
         for m2 in re.finditer(LUA_STRING + r'|[\w.+\-]+', body, re.S):
             token = m2.group(0)
@@ -650,6 +671,52 @@ def reload():
     print("ok")
 
 
+# --- monitors: switch outputs on and off ------------------------------------------
+
+def monitor_positions_file():
+    return os.path.join(STATE_DIR, "monitor-positions.json")
+
+
+def set_output(name, enabled):
+    """Switch an output on or off with xrandr. Hyprland keeps a monitor's rule
+    while it is disabled, so an output comes back where it was: its position is
+    saved when it goes off. One never placed before goes to the right of the
+    others (upstream's default rule is position = "auto")."""
+    outputs = xrandr_outputs()
+    if name not in outputs or not outputs[name]["connected"]:
+        raise Failed(f"no connected output {name}")
+    try:
+        positions = json.load(open(monitor_positions_file()))
+    except (OSError, ValueError):
+        positions = {}
+    o = outputs[name]
+    if not enabled:
+        if o["active"]:
+            positions[name] = [o["x"], o["y"]]
+            os.makedirs(STATE_DIR, exist_ok=True)
+            with open(monitor_positions_file(), "w") as f:
+                json.dump(positions, f)
+            must("xrandr", "--output", name, "--off")
+        return
+    if o["active"]:
+        return
+    others = [v for k, v in outputs.items() if v["active"] and k != name]
+    x, y = positions.get(name) or [max((v["x"] + v["width"] for v in others), default=0), 0]
+    must("xrandr", "--output", name, "--auto", "--pos", f"{int(x)}x{int(y)}")
+
+
+def monitor_eval(expr):
+    """`hl.monitor({ output = "eDP-1", disabled = true })`, as the shell's
+    display panel sends it. Mode, position, scale and the rest of Hyprland's
+    eval API have no handling here (per-monitor scaling is Deferred)."""
+    m = re.match(r"\s*hl\.monitor\s*\(\s*(\{.*\})\s*\)\s*$", expr, re.S)
+    args = lua_table(m.group(1)) if m else {}
+    if not args.get("output") or set(args) != {"output", "disabled"} or args["disabled"] not in ("true", "false"):
+        unsupported(f"eval {expr}")
+    set_output(args["output"], enabled=args["disabled"] == "false")
+    print("ok")
+
+
 # --- main ------------------------------------------------------------------------
 
 def main(argv):
@@ -690,8 +757,10 @@ def main(argv):
         hyprsunset(rest)
     elif cmd == "keyword" and rest[:1] == ["monitor"] and len(rest) > 1:
         spec = rest[1].split(",")
-        must("xrandr", "--output", spec[0], "--off" if len(spec) > 1 and spec[1] == "disable" else "--auto")
+        set_output(spec[0], enabled=not (len(spec) > 1 and spec[1] == "disable"))
         print("ok")
+    elif cmd == "eval":
+        monitor_eval(" ".join(rest))
     elif cmd == "cursorpos":
         loc = dict(re.findall(r"(\w+):(\d+)", must("xdotool", "getmouselocation")))
         if "-j" in argv:

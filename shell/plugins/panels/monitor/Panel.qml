@@ -77,7 +77,7 @@ Panel {
     var list = []
     if (brightnessAvailable) list.push("brightness")
     list.push("textsize")
-    list.push("scale")
+    // OAH(x11): no "scale" section; per-monitor scaling is Deferred
     if (displays.length > 1) list.push("monitors")
     return list
   }
@@ -740,10 +740,12 @@ Panel {
 
           // ---------- Scale ----------
           PanelSeparator {
+            visible: false // OAH(x11): per-monitor scaling is Deferred
             foreground: root.bar.foreground
           }
 
           Column {
+            visible: false // OAH(x11): per-monitor scaling is Deferred
             width: parent.width
             spacing: Style.space(10)
 
