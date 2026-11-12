@@ -1,0 +1,199 @@
+#!/usr/bin/env python3
+"""OAH(x11): Omarchy's window rules on bspwm (bspwm's external_rules_command).
+
+bspwm runs this for every window it's about to manage:
+
+  oah-x11-window-rules <window id> <class> <instance> <consequences so far>
+
+It applies upstream's hl.window_rule() calls (default/hypr/windows.lua and
+default/hypr/apps/*.lua, collected into configs/bspwm/window-rules.json by
+tools/oah-gen-window-rules) in order, the way Hyprland matches them: `class`
+(against either half of WM_CLASS) and `title` are regexes that must match
+the whole string, `tag` matches tags earlier rules gave the window (`+tag` adds one, `-tag` removes it). It prints
+the bspwm consequences for what bspwm can do:
+
+  float / tile / fullscreen      state=floating / tiled / fullscreen
+  size, move                     rectangle=WxH+X+Y (monitor_w, monitor_h,
+                                 window_w, window_h expressions allowed)
+  center (or a size with no move) center=on, which Hyprland does for floats
+  pin                            sticky=on
+  no_initial_focus               focus=off
+  border_size = 0                border=off
+
+A placement already decided by a `bspc rule` (a state, rectangle or monitor,
+such as omarchy-launch-screensaver's one-shot rules) wins over these. Rules
+that match on anything else (xwayland, window state) are skipped, and other
+effects (opacity, rounding, idle_inhibit, no_screen_share, keep_aspect_ratio,
+focus tweaks, special workspaces, ...) have no bspwm equivalent here; see
+"Window rule effects" on the project board's Deferred list.
+"""
+
+import ast
+import json
+import operator
+import os
+import re
+import subprocess
+import sys
+
+OAH_ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+RULES = os.path.join(OAH_ROOT, "configs", "bspwm", "window-rules.json")
+MATCH_KEYS = {"class", "title", "tag"}
+
+
+def title_of(wid):
+    """The window's title as Hyprland reads it (_NET_WM_NAME, else WM_NAME)."""
+    for prop in ("_NET_WM_NAME", "WM_NAME"):
+        try:
+            out = subprocess.run(["xprop", "-id", wid, prop], capture_output=True, text=True, timeout=2).stdout
+        except (OSError, subprocess.TimeoutExpired):
+            return ""
+        m = re.search(r'= "(.*)"\s*$', out, re.S)
+        if m:
+            return m.group(1).replace('\\"', '"').replace("\\\\", "\\")
+    return ""
+
+
+def fullmatch(pattern, value):
+    try:
+        return re.fullmatch(pattern, value) is not None
+    except re.error:
+        return False
+
+
+def matches(match, window, tags):
+    if not set(match) <= MATCH_KEYS:
+        return False
+    # On X11 an app's Wayland app_id can sit in either half of WM_CLASS.
+    if "class" in match and not any(fullmatch(match["class"], c) for c in window["class"]):
+        return False
+    if "title" in match and not fullmatch(match["title"], window["title"]):
+        return False
+    if "tag" in match and match["tag"] not in tags:
+        return False
+    return True
+
+
+OPS = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul,
+       ast.Div: operator.truediv, ast.USub: operator.neg, ast.UAdd: operator.pos}
+
+
+def evaluate(expr, names):
+    """A number, or an upstream expression like "(monitor_w-window_w-40)"."""
+    if isinstance(expr, (int, float)):
+        return float(expr)
+
+    def ev(node):
+        if isinstance(node, ast.Expression):
+            return ev(node.body)
+        if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+            return float(node.value)
+        if isinstance(node, ast.Name) and node.id in names:
+            return float(names[node.id])
+        if isinstance(node, ast.BinOp) and type(node.op) in OPS:
+            return OPS[type(node.op)](ev(node.left), ev(node.right))
+        if isinstance(node, ast.UnaryOp) and type(node.op) in OPS:
+            return OPS[type(node.op)](ev(node.operand))
+        raise ValueError(expr)
+
+    return ev(ast.parse(str(expr).strip(), mode="eval"))
+
+
+def monitor_rect(name):
+    args = ["bspc", "query", "-T", "-m"] + ([name] if name else [])
+    out = subprocess.run(args, capture_output=True, text=True).stdout
+    r = json.loads(out)["rectangle"]
+    return r["x"], r["y"], r["width"], r["height"]
+
+
+def window_size(wid):
+    out = subprocess.run(["xwininfo", "-id", wid], capture_output=True, text=True).stdout
+    w = re.search(r"Width: (\d+)", out)
+    h = re.search(r"Height: (\d+)", out)
+    return (int(w.group(1)), int(h.group(1))) if w and h else (0, 0)
+
+
+def main():
+    if len(sys.argv) < 4:
+        return
+    wid, wclass, instance = sys.argv[1:4]
+    given = dict(kv.split("=", 1) for kv in (sys.argv[4] if len(sys.argv) > 4 else "").split() if "=" in kv)
+
+    try:
+        with open(RULES) as f:
+            rules = json.load(f)["rules"]
+    except (OSError, ValueError, KeyError):
+        return
+
+    window = {"class": (wclass, instance), "title": title_of(wid)}
+
+    # Hyprland re-evaluates rules whenever a window's tags change, so a rule on
+    # a tag applies even when it comes before the rule that tags the window
+    # (system.lua floats "floating-window" before tagging btop with it). Settle
+    # the tags first: replay the tag rules until a pass changes nothing.
+    tags = set()
+    for _ in range(8):
+        settled, current = tags, set()
+        for rule in rules:
+            tag = rule.get("tag")
+            if isinstance(tag, str) and matches(rule.get("match", {}), window, current | settled):
+                if tag[:1] == "-":
+                    current.discard(tag[1:])
+                else:
+                    current.add(tag.lstrip("+"))
+        tags = current
+        if tags == settled:
+            break
+
+    effects = {}
+    for rule in rules:
+        if not matches(rule.get("match", {}), window, tags):
+            continue
+        for key in ("float", "tile", "fullscreen", "center", "size", "move", "pin", "no_initial_focus", "border_size"):
+            if key in rule:
+                effects[key] = rule[key]
+                # Hyprland: the later of float and tile decides.
+                if key in ("float", "tile"):
+                    effects.pop("tile" if key == "float" else "float", None)
+
+    out = []
+    if not given.get("state"):
+        if effects.get("fullscreen"):
+            out.append("state=fullscreen")
+        elif effects.get("float"):
+            out.append("state=floating")
+        elif effects.get("tile"):
+            out.append("state=tiled")
+
+    if not given.get("rectangle") and ("size" in effects or "move" in effects):
+        try:
+            mx, my, mw, mh = monitor_rect(given.get("monitor"))
+            names = {"monitor_w": mw, "monitor_h": mh}
+            if "size" in effects:
+                w, h = (round(evaluate(v, names)) for v in effects["size"])
+            else:
+                w, h = window_size(wid)
+            names.update(window_w=w, window_h=h)
+            if "move" in effects:
+                x, y = (round(evaluate(v, names)) for v in effects["move"])
+                out.append(f"rectangle={w}x{h}+{mx + x}+{my + y}")
+            else:
+                out.append(f"rectangle={w}x{h}+{mx}+{my}")
+                effects.setdefault("center", True)
+        except (OSError, ValueError, KeyError, SyntaxError, ZeroDivisionError):
+            pass
+
+    if effects.get("center") and "move" not in effects:
+        out.append("center=on")
+    if effects.get("pin"):
+        out.append("sticky=on")
+    if effects.get("no_initial_focus"):
+        out.append("focus=off")
+    if effects.get("border_size") == 0:
+        out.append("border=off")
+
+    print(" ".join(out))
+
+
+if __name__ == "__main__":
+    main()

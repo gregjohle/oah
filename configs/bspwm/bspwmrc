@@ -72,6 +72,9 @@ bspc config pointer_action2 none
 bspc rule -a "Pavucontrol" state=floating rectangle=800x600+0+0 center=true
 bspc rule -a "Lxappearance" state=floating center=true
 bspc rule -a "polkit-gnome-authentication-agent-1" state=floating center=true
+# Upstream's own window rules (default/hypr/windows.lua, apps/*.lua): floating
+# TUIs and dialogs, sizes, picture-in-picture, ...; see oah-x11-window-rules.
+bspc config external_rules_command "$(readlink -f "$(dirname "$(readlink -f "$0")")/../../bin/oah-x11-window-rules")"
 # Upstream default/hypr/apps/system.lua: the screensaver is always fullscreen
 # (omarchy-launch-screensaver adds one-shot rules on top to pick the monitor).
 bspc rule -a org.omarchy.screensaver state=fullscreen

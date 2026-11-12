@@ -146,11 +146,16 @@ remember_fit() {
 # Replaces the rule from the last launch so a remembered size never outlives the
 # fit it came from. Called without one it only clears, leaving the float rule's
 # starting size — where a Hyprland without the Lua API stays too.
+# OAH(x11): was a Hyprland rule set through `hyprctl eval`. On bspwm it's a
+# one-shot rule, which wins over the 920x480 from oah-x11-window-rules; any left
+# from a launch that only focused an open About are dropped first (last first,
+# so the indexes hold).
 apply_size_rule() {
-  local rule=""
-  (( $# == 2 )) && rule="omarchy_about_size_rule = hl.window_rule({ match = { class = \"org.omarchy.about\" }, size = { $1, $2 } })"
+  bspc rule -l | grep -n '^org\.omarchy\.about:.* -> ' | cut -d: -f1 | sort -rn |
+    while read -r index; do bspc rule -r "^$index"; done
 
-  hyprctl eval "if omarchy_about_size_rule then omarchy_about_size_rule:set_enabled(false) end; omarchy_about_size_rule = nil; $rule" >/dev/null 2>&1
+  (( $# == 2 )) && bspc rule -a org.omarchy.about -o state=floating center=on "rectangle=$1x$2+0+0"
+  return 0
 }
 
 # Sized before the terminal is spawned, so the window maps at its final size.
