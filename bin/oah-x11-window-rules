@@ -123,20 +123,30 @@ def main():
     except (OSError, ValueError, KeyError):
         return
 
-    window = {"class": (wclass, instance), "title": None}
+    window = {"class": (wclass, instance), "title": title_of(wid)}
+
+    # Hyprland re-evaluates rules whenever a window's tags change, so a rule on
+    # a tag applies even when it comes before the rule that tags the window
+    # (system.lua floats "floating-window" before tagging btop with it). Settle
+    # the tags first: replay the tag rules until a pass changes nothing.
     tags = set()
+    for _ in range(8):
+        settled, current = tags, set()
+        for rule in rules:
+            tag = rule.get("tag")
+            if isinstance(tag, str) and matches(rule.get("match", {}), window, current | settled):
+                if tag[:1] == "-":
+                    current.discard(tag[1:])
+                else:
+                    current.add(tag.lstrip("+"))
+        tags = current
+        if tags == settled:
+            break
+
     effects = {}
     for rule in rules:
-        match = rule.get("match", {})
-        if "title" in match and window["title"] is None:
-            window["title"] = title_of(wid)
-        if not matches(match, window, tags):
+        if not matches(rule.get("match", {}), window, tags):
             continue
-        tag = rule.get("tag")
-        if isinstance(tag, str) and tag[:1] in "+-":
-            (tags.add if tag[0] == "+" else tags.discard)(tag[1:])
-        elif isinstance(tag, str):
-            tags.add(tag)
         for key in ("float", "tile", "fullscreen", "center", "size", "move", "pin", "no_initial_focus"):
             if key in rule:
                 effects[key] = rule[key]
