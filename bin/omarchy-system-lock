@@ -4,6 +4,15 @@
 # omarchy:group=system
 # omarchy:name=lock
 # omarchy:examples=omarchy system lock
+# shellcheck disable=SC2317 # OAH(x11): upstream's lock below is unreachable until the X11 lock lands
+
+# OAH(x11): Omarchy's lock screen runs on Wayland's session-lock protocol,
+# which X11 doesn't have (board: Deferred -> Lock screen). On X11 the request
+# below reported success without locking anything, so say so and fail
+# instead. Upstream's script is kept below for when OAH's X11 lock lands.
+omarchy-notification-send -u critical -g 󰌾 "Lock screen not available" \
+  "Omarchy At Home can't lock the screen on X11 yet." >/dev/null 2>&1 || true
+exit 1
 
 omarchy-shell lock lock >/dev/null
 
