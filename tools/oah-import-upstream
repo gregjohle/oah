@@ -1,0 +1,64 @@
+#!/bin/bash
+# Copy what OAH runs from the pinned Omarchy release into this repo, in
+# Omarchy's own layout (bin/, default/, config/, themes/, ...), so an installed
+# OAH needs no Omarchy checkout. Run it again after bumping UPSTREAM to take
+# the next release.
+#
+#   - agents applications config default etc install migrations themes and the
+#     root files below are replaced as released (OAH doesn't edit them).
+#   - bin/: every upstream command is copied, except files OAH has changed
+#     (they carry an "OAH(x11)" marker); those are listed for a manual merge.
+#   - shell/ has OAH edits throughout; it comes from tools/oah-import-shell.
+#   - manual/, test/, docs/, plans/ and the repo's own dotfiles aren't used at
+#     runtime and aren't copied.
+#
+# Usage: oah-import-upstream
+
+set -euo pipefail
+
+source "$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")/lib/common.sh"
+
+case "${1:-}" in
+  "") ;;
+  -h|--help) sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  *) oah_die "unknown argument: $1" ;;
+esac
+
+dirs=(agents applications config default etc install migrations themes)
+files=(version logo.txt logo.svg icon.txt icon.png)
+
+work=$(mktemp -d)
+trap 'rm -rf -- "$work"' EXIT
+oah_fetch_upstream "$work/omarchy"
+src=$work/omarchy
+
+for d in "${dirs[@]}"; do
+  [[ -d $src/$d ]] || oah_die "$OAH_PIN has no $d/"
+  rm -rf -- "$OAH_ROOT/$d.new"
+  cp -a -- "$src/$d" "$OAH_ROOT/$d.new"
+  rm -rf -- "${OAH_ROOT:?}/$d"
+  mv -T -- "$OAH_ROOT/$d.new" "$OAH_ROOT/$d"
+done
+for f in "${files[@]}"; do
+  cp -a -- "$src/$f" "$OAH_ROOT/$f"
+done
+# Omarchy is MIT-licensed; its notice travels with the copy.
+cp -- "$src/LICENSE" "$OAH_ROOT/LICENSE.omarchy"
+
+mkdir -p "$OAH_ROOT/bin"
+copied=0 kept=()
+for cmd in "$src"/bin/*; do
+  name=${cmd##*/}
+  if [[ -e $OAH_ROOT/bin/$name ]] && grep -q 'OAH(x11)' "$OAH_ROOT/bin/$name"; then
+    kept+=("$name")
+    continue
+  fi
+  cp -a -- "$cmd" "$OAH_ROOT/bin/$name"
+  copied=$((copied + 1))
+done
+
+echo "Imported Omarchy $OAH_PIN: ${dirs[*]}, ${files[*]}, $copied bin commands"
+if (( ${#kept[@]} )); then
+  echo "Kept OAH's changed commands (merge $OAH_PIN's changes into them by hand):"
+  printf '  bin/%s\n' "${kept[@]}"
+fi

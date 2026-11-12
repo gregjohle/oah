@@ -1,13 +1,9 @@
 #!/bin/bash
-# Assemble the OMARCHY_PATH tree OAH runs from: the pinned upstream Omarchy
-# release with OAH's X11 overrides layered on top.
+# Assemble the OMARCHY_PATH tree OAH runs from. OAH ships Omarchy's files in
+# Omarchy's own layout (bin/, default/, config/, shell/, themes/, ...) with its
+# X11 changes in place, so the tree is this repo's entries, symlinked:
 #
-#   $OAH_RUNTIME/
-#     shell -> $OAH_ROOT/shell if OAH has its ported shell, else upstream's
-#     themes -> $OAH_ROOT/themes (OAH's copy of upstream's themes)
-#     bin/     every upstream command (symlinked), with $OAH_ROOT/bin/* replacing
-#              same-named upstream commands and adding new ones
-#     *     -> every other upstream entry, symlinked as-is
+#   $OAH_RUNTIME/<entry> -> $OAH_ROOT/<entry>   (all but .git and tools)
 #
 # The tree is rebuilt from scratch each run and swapped in atomically, so a
 # running shell never sees a half-built tree.
@@ -27,8 +23,6 @@ case "${1:-}" in
   *) oah_die "unknown argument: $1" ;;
 esac
 
-oah_require_upstream
-
 # Only ever replace a tree this tool built, never a directory that happens to
 # be at a mistyped OAH_RUNTIME.
 if [[ -e $OAH_RUNTIME && ! -f $OAH_RUNTIME/.oah-pin ]]; then
@@ -43,36 +37,16 @@ chmod 755 "$staging"
 
 shopt -s dotglob nullglob
 
-for entry in "$OAH_UPSTREAM"/*; do
+[[ -x $OAH_ROOT/bin/omarchy-theme-set && -d $OAH_ROOT/default && -d $OAH_ROOT/themes ]] ||
+  oah_die "$OAH_ROOT is missing Omarchy's files (run tools/oah-import-upstream)"
+
+for entry in "$OAH_ROOT"/*; do
   name=${entry##*/}
   case "$name" in
-    .git | bin | shell | themes) continue ;;
+    .git | .gitignore | tools) continue ;;
   esac
   ln -s -- "$entry" "$staging/$name"
 done
-
-if [[ -d $OAH_ROOT/shell ]]; then
-  ln -s -- "$OAH_ROOT/shell" "$staging/shell"
-else
-  ln -s -- "$OAH_UPSTREAM/shell" "$staging/shell"
-fi
-
-[[ -d $OAH_ROOT/themes ]] || oah_die "no themes in $OAH_ROOT/themes (run tools/oah-import-themes)"
-ln -s -- "$OAH_ROOT/themes" "$staging/themes"
-
-mkdir "$staging/bin"
-for cmd in "$OAH_UPSTREAM"/bin/*; do
-  ln -s -- "$cmd" "$staging/bin/${cmd##*/}"
-done
-
-overrides=0
-if [[ -d $OAH_ROOT/bin ]]; then
-  for cmd in "$OAH_ROOT"/bin/*; do
-    [[ -f $cmd ]] || continue
-    ln -sfn -- "$cmd" "$staging/bin/${cmd##*/}"
-    overrides=$((overrides + 1))
-  done
-fi
 
 printf '%s\n' "$OAH_PIN" >"$staging/.oah-pin"
 
@@ -90,6 +64,5 @@ trap - EXIT
 if (( print_path )); then
   printf '%s\n' "$OAH_RUNTIME"
 else
-  printf 'Runtime ready: %s (Omarchy %s, %d OAH command override(s), shell from %s)\n' \
-    "$OAH_RUNTIME" "$OAH_PIN" "$overrides" "$(readlink "$OAH_RUNTIME/shell")"
+  printf 'Runtime ready: %s (Omarchy %s, from %s)\n' "$OAH_RUNTIME" "$OAH_PIN" "$OAH_ROOT"
 fi
