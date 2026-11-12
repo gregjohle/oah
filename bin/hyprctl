@@ -129,11 +129,15 @@ def collect(state, include_disabled=False):
             history[nid] = order
             order += 1
 
-    monitors, workspaces, clients = [], [], []
+    monitors, workspaces, clients, disabled_bspwm = [], [], [], []
     focused_client = None
     for mi, m in enumerate(state.get("monitors", [])):
         rect = m["rectangle"]
-        focused_mon = m["id"] == state.get("focusedMonitorId")
+        # bspwm keeps a switched-off output as a monitor (remove_disabled_monitors
+        # is off), so xrandr decides whether it is enabled.
+        out_state = outputs.get(m["name"], {})
+        off = out_state.get("connected", False) and not out_state.get("active", True)
+        focused_mon = m["id"] == state.get("focusedMonitorId") and not off
         mon = {
             "id": mi, "name": m["name"], "description": m["name"], "make": "", "model": "", "serial": "",
             "width": rect["width"], "height": rect["height"],
@@ -177,10 +181,17 @@ def collect(state, include_disabled=False):
                 mon["activeWorkspace"] = {"id": ws_id, "name": d["name"]}
             if active or ws["windows"]:
                 workspaces.append(ws)
+        if off:
+            # Listed (by `monitors all`) only as disabled, like Hyprland.
+            if include_disabled:
+                mon.update({"width": 0, "height": 0, "x": 0, "y": 0, "dpmsStatus": False, "disabled": True})
+                disabled_bspwm.append(mon)
+            continue
         monitors.append(mon)
 
     if include_disabled:
         # `monitors all` also lists connected outputs that are switched off.
+        monitors.extend(disabled_bspwm)
         known = {m["name"] for m in monitors}
         for name, o in outputs.items():
             if o["connected"] and not o["active"] and name not in known:
