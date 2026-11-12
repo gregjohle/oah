@@ -194,6 +194,7 @@ PanelWindow {
   color: "transparent"
   // OAH(x11): was WlrLayershell.namespace: "omarchy-dock"
   aboveWindows: true // OAH(x11): was WlrLayershell.layer: WlrLayer.Top
+  Item { readonly property string oahLayerTag: "oah-layer-top"; function oahApplyLayerTag() { if (Window.window) Window.window.title = oahLayerTag } onOahLayerTagChanged: oahApplyLayerTag(); Window.onWindowChanged: oahApplyLayerTag(); Component.onCompleted: oahApplyLayerTag() } // OAH(x11): names this window after its Wayland layer for oah-x11-stacking
   focusable: false // OAH(x11): was WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
   // Kept clear of the bar's reserved edge, without reserving one of its own:
   // floating windows go where they are put.

@@ -230,6 +230,7 @@ Item {
     color: "transparent"
     // OAH(x11): was WlrLayershell.namespace: "omarchy-polkit"
     aboveWindows: true // OAH(x11): was WlrLayershell.layer: WlrLayer.Overlay
+    Item { readonly property string oahLayerTag: "oah-layer-overlay"; function oahApplyLayerTag() { if (Window.window) Window.window.title = oahLayerTag } onOahLayerTagChanged: oahApplyLayerTag(); Window.onWindowChanged: oahApplyLayerTag(); Component.onCompleted: oahApplyLayerTag() } // OAH(x11): names this window after its Wayland layer for oah-x11-stacking
     focusable: true // OAH(x11): was WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     exclusionMode: ExclusionMode.Ignore
 

@@ -79,6 +79,7 @@ PanelWindow {
   color: "transparent"
   exclusionMode: ExclusionMode.Ignore
   aboveWindows: (shownLayer) === WlrLayer.Top || (shownLayer) === WlrLayer.Overlay // OAH(x11): was WlrLayershell.layer: shownLayer
+  Item { readonly property string oahLayerTag: (shownLayer) === WlrLayer.Top ? "oah-layer-top" : "oah-layer-overlay"; function oahApplyLayerTag() { if (Window.window) Window.window.title = oahLayerTag } onOahLayerTagChanged: oahApplyLayerTag(); Window.onWindowChanged: oahApplyLayerTag(); Component.onCompleted: oahApplyLayerTag() } // OAH(x11): names this window after its Wayland layer for oah-x11-stacking
   focusable: (shownKeyboardFocus) != WlrKeyboardFocus.None // OAH(x11): was WlrLayershell.keyboardFocus: shownKeyboardFocus
 
   // Opacity preserves keyboard handling while the scale arrives, including

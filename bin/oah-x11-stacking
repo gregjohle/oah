@@ -12,7 +12,11 @@ the bar's popups.
 
 This daemon watches the root window and restores the order whenever it's
 wrong: shell dock windows asking to be below go to the bottom, those asking
-to be above go to the top, keeping their relative order. It never touches
+to be above go to the top, keeping their relative order. Like Hyprland, a
+fullscreen window covers the Top layer (the bar and dock): a shell window
+the transform tagged "oah-layer-top" (its window title) goes just below a
+viewable fullscreen window on its monitor; Overlay windows (popups, OSD,
+notifications) stay above everything. It never touches
 windows bspwm manages, and only restacks when the order is actually wrong, so
 its own restacking can't loop.
 
@@ -45,6 +49,9 @@ def main() -> int:
     WM_TYPE = atom("_NET_WM_WINDOW_TYPE")
     DOCK = atom("_NET_WM_WINDOW_TYPE_DOCK")
     ACTIVE = atom("_NET_ACTIVE_WINDOW")
+    FULLSCREEN = atom("_NET_WM_STATE_FULLSCREEN")
+    NET_WM_NAME = atom("_NET_WM_NAME")
+    UTF8 = atom("UTF8_STRING")
 
     def atoms(w, prop):
         try:
@@ -59,6 +66,23 @@ def main() -> int:
         except error.XError:
             return False
 
+    def title(w):
+        try:
+            p = w.get_full_property(NET_WM_NAME, UTF8)
+        except error.XError:
+            return ""
+        return p.value.decode(errors="replace") if p else ""
+
+    def geometry(w):
+        try:
+            g = w.get_geometry()
+            return g.x, g.y, g.width, g.height
+        except error.XError:
+            return None
+
+    def overlaps(a, b):
+        return a and b and a[0] < b[0] + b[2] and b[0] < a[0] + a[2] and a[1] < b[1] + b[3] and b[1] < a[1] + a[3]
+
     def enforce():
         try:
             children = root.query_tree().children  # bottom -> top
@@ -70,9 +94,24 @@ def main() -> int:
         above = [w for w in windows if w.id in docks and ABOVE in atoms(w, WM_STATE)]
         below_ids, above_ids = {w.id for w in below}, {w.id for w in above}
 
+        # Top-layer docks under a viewable fullscreen window on their monitor.
+        fullscreen = [(w, geometry(w)) for w in windows
+                      if w.id not in docks and FULLSCREEN in atoms(w, WM_STATE)]
+        covered = {}  # Top dock id -> the fullscreen window it goes under
+        for w in above:
+            if title(w) != "oah-layer-top":
+                continue
+            g = geometry(w)
+            for f, fg in fullscreen:
+                if overlaps(g, fg):
+                    covered[w.id] = f
+                    break
+
         order = [w.id for w in windows]
         others = [i for i in order if i not in below_ids and i not in above_ids]
-        desired = [w.id for w in below] + others + [w.id for w in above]
+        for dock_id, f in covered.items():
+            others.insert(others.index(f.id), dock_id)
+        desired = [w.id for w in below] + others + [w.id for w in above if w.id not in covered]
         if order == desired:
             return
 
@@ -82,7 +121,10 @@ def main() -> int:
             for w in reversed(below):
                 w.configure(stack_mode=X.Below)
             for w in above:
-                w.configure(stack_mode=X.Above)
+                if w.id in covered:
+                    w.configure(sibling=covered[w.id], stack_mode=X.Below)
+                else:
+                    w.configure(stack_mode=X.Above)
             d.sync()
         except error.XError:
             pass  # a window vanished mid-restack; the next event retries
@@ -173,7 +215,9 @@ def main() -> int:
     except error.XError:
         pass
 
-    relevant = (X.MapNotify, X.ConfigureNotify, X.CirculateNotify, X.ReparentNotify)
+    # Unmap/Destroy too: a fullscreen window going away (or its desktop being
+    # hidden) brings the Top layer back up.
+    relevant = (X.MapNotify, X.UnmapNotify, X.DestroyNotify, X.ConfigureNotify, X.CirculateNotify, X.ReparentNotify)
     while True:
         # Coalesce a burst of events into one stacking check, but look at
         # every event in it: a MapNotify behind a CreateNotify must still

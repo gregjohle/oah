@@ -128,6 +128,7 @@ PanelWindow {
 
   // OAH(x11): was WlrLayershell.namespace: "omarchy-keyboard-panel"
   aboveWindows: true // OAH(x11): was WlrLayershell.layer: WlrLayer.Overlay
+  Item { readonly property string oahLayerTag: "oah-layer-overlay"; function oahApplyLayerTag() { if (Window.window) Window.window.title = oahLayerTag } onOahLayerTagChanged: oahApplyLayerTag(); Window.onWindowChanged: oahApplyLayerTag(); Component.onCompleted: oahApplyLayerTag() } // OAH(x11): names this window after its Wayland layer for oah-x11-stacking
   // Keyboard focus follows `open` (NOT `visible`). The window remains
   // mapped during the fade-out so the opacity animation has something to
   // animate, but keyboard/click ownership must release the moment the
@@ -480,6 +481,7 @@ PanelWindow {
 
         // OAH(x11): was WlrLayershell.namespace: "omarchy-keyboard-panel-dismiss"
         aboveWindows: true // OAH(x11): was WlrLayershell.layer: WlrLayer.Overlay
+        Item { readonly property string oahLayerTag: "oah-layer-overlay"; function oahApplyLayerTag() { if (Window.window) Window.window.title = oahLayerTag } onOahLayerTagChanged: oahApplyLayerTag(); Window.onWindowChanged: oahApplyLayerTag(); Component.onCompleted: oahApplyLayerTag() } // OAH(x11): names this window after its Wayland layer for oah-x11-stacking
         focusable: false // OAH(x11): was WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
         anchors {

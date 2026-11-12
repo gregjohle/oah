@@ -250,6 +250,7 @@ Item {
       anchors { top: true; bottom: true; left: true; right: true }
       exclusionMode: ExclusionMode.Ignore
       aboveWindows: true // OAH(x11): was WlrLayershell.layer: WlrLayer.Overlay
+      Item { readonly property string oahLayerTag: "oah-layer-overlay"; function oahApplyLayerTag() { if (Window.window) Window.window.title = oahLayerTag } onOahLayerTagChanged: oahApplyLayerTag(); Window.onWindowChanged: oahApplyLayerTag(); Component.onCompleted: oahApplyLayerTag() } // OAH(x11): names this window after its Wayland layer for oah-x11-stacking
       focusable: false // OAH(x11): was WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
       // OAH(x11): was WlrLayershell.namespace: "omarchy-background"
 

@@ -1798,6 +1798,7 @@ Item {
     surfaceFormat.opaque: false
     // OAH(x11): was WlrLayershell.namespace: "omarchy-bar"
     aboveWindows: true // OAH(x11): was WlrLayershell.layer: WlrLayer.Top
+    Item { readonly property string oahLayerTag: "oah-layer-top"; function oahApplyLayerTag() { if (Window.window) Window.window.title = oahLayerTag } onOahLayerTagChanged: oahApplyLayerTag(); Window.onWindowChanged: oahApplyLayerTag(); Component.onCompleted: oahApplyLayerTag() } // OAH(x11): names this window after its Wayland layer for oah-x11-stacking
 
     // Whether the active workspace on this screen holds a real fullscreen
     // window, which fades the bar out.
@@ -2030,6 +2031,7 @@ Item {
     exclusionMode: ExclusionMode.Ignore
     // OAH(x11): was WlrLayershell.namespace: "omarchy-bar-drag-ghost"
     aboveWindows: true // OAH(x11): was WlrLayershell.layer: WlrLayer.Overlay
+    Item { readonly property string oahLayerTag: "oah-layer-overlay"; function oahApplyLayerTag() { if (Window.window) Window.window.title = oahLayerTag } onOahLayerTagChanged: oahApplyLayerTag(); Window.onWindowChanged: oahApplyLayerTag(); Component.onCompleted: oahApplyLayerTag() } // OAH(x11): names this window after its Wayland layer for oah-x11-stacking
     focusable: false // OAH(x11): was WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
     anchors {
@@ -2224,6 +2226,7 @@ Item {
     exclusionMode: ExclusionMode.Ignore
     // OAH(x11): was WlrLayershell.namespace: "omarchy-bar-move-ghost"
     aboveWindows: true // OAH(x11): was WlrLayershell.layer: WlrLayer.Overlay
+    Item { readonly property string oahLayerTag: "oah-layer-overlay"; function oahApplyLayerTag() { if (Window.window) Window.window.title = oahLayerTag } onOahLayerTagChanged: oahApplyLayerTag(); Window.onWindowChanged: oahApplyLayerTag(); Component.onCompleted: oahApplyLayerTag() } // OAH(x11): names this window after its Wayland layer for oah-x11-stacking
     focusable: false // OAH(x11): was WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
     anchors {
