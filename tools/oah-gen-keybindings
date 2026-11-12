@@ -54,10 +54,10 @@ def write_atomic(path, text):
 
 
 def upstream_path():
-    env = dict(os.environ)
-    out = sh(["bash", "-c", 'source "$1/tools/lib/common.sh" && oah_require_upstream && printf "%s\\n%s" "$OAH_UPSTREAM" "$OAH_PIN"', "_", ROOT], env=env)
-    path, pin = out.splitlines()
-    return path, pin
+    """OAH ships upstream's tree in Omarchy's own layout (default/hypr/bindings/
+    etc.), so the bindings come from this repo, at the release in UPSTREAM."""
+    with open(os.path.join(ROOT, "UPSTREAM")) as f:
+        return ROOT, f.read().strip()
 
 
 # --- keys ----------------------------------------------------------------------

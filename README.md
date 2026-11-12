@@ -2,28 +2,25 @@
 
 A 1:1 port of [Omarchy](https://github.com/basecamp/omarchy)'s desktop (its Quickshell shell, theming, keybindings and `omarchy-*` commands) to any Linux distro running X11 or XLibre, with bspwm as the window manager.
 
-OAH doesn't rewrite Omarchy. It runs Omarchy's own code, pinned to a formal release (see [`UPSTREAM`](UPSTREAM)), and overrides only what depends on Hyprland or Wayland.
+OAH doesn't rewrite Omarchy. It ships Omarchy's own code, in Omarchy's own layout and pinned to a formal release (see [`UPSTREAM`](UPSTREAM)), and changes only what depends on Hyprland or Wayland. OAH is standalone: it needs no Omarchy checkout to run or install.
 
 ## Layout
 
 | Path | Purpose |
 |---|---|
 | `UPSTREAM` | The Omarchy release OAH is pinned to |
-| `tools/oah-runtime` | Builds the `OMARCHY_PATH` tree: upstream + OAH overrides |
+| `tools/oah-runtime` | Builds the `OMARCHY_PATH` tree (links to this repo's entries) |
+| `tools/oah-import-upstream` | Copies the pinned release's files into this repo (re-run on each upgrade) |
 | `tools/oah-dev` | Runs the desktop in a nested, isolated X session for development |
-| `bin/` | X11 replacements for upstream `omarchy-*` commands (override same-named upstream commands) |
-| `shell/` | OAH's ported copy of upstream's Quickshell shell (once the port starts) |
+| `bin/` | Omarchy's commands, OAH's X11 changes made in place (marked `OAH(x11)`), and OAH's own commands |
+| `shell/` | Omarchy's Quickshell shell, ported to X11 (`tools/oah-import-shell` + marked hand edits) |
+| `agents/` `applications/` `config/` `default/` `etc/` `install/` `migrations/` | Omarchy's files as released (`LICENSE.omarchy`) |
 | `configs/` | bspwm, sxhkd, picom configs |
-| `themes/` | Omarchy's themes, copied from the pinned release (`tools/oah-import-themes`); OAH ships them itself |
+| `themes/` | Omarchy's themes as released |
 
 ## Development
 
-You need an Omarchy checkout at the pinned release. The default location is `../omarchy` next to this repo; set `OAH_UPSTREAM` to use another.
-
-```bash
-git clone https://github.com/basecamp/omarchy ../omarchy
-git -C ../omarchy checkout "$(cat UPSTREAM)"
-```
+Everything runs from this repo. The import tools download the pinned release from GitHub when an upgrade needs it (`OAH_UPSTREAM_URL` overrides the source).
 
 Dependencies (Arch): `quickshell bspwm sxhkd xorg-server-xephyr xorg-xprop imagemagick ttf-jetbrains-mono-nerd`; `xorg-server-xvfb` for `--headless`.
 

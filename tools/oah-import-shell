@@ -1,5 +1,5 @@
 #!/bin/bash
-# Create oah/shell from the pinned upstream shell: copy it, then apply the
+# Create oah/shell from the pinned upstream shell: download the release, copy it, then apply the
 # scripted Wayland -> X11 rewrites (tools/lib/x11-qml-transform.py).
 #
 # This is the first step of the port and of every upstream upgrade. Hand-made
@@ -22,13 +22,14 @@ case "${1:-}" in
   *) oah_die "unknown argument: $1" ;;
 esac
 
-oah_require_upstream
 [[ ! -e $dest ]] || oah_die "$dest already exists; the import only creates a fresh tree (upgrades merge into an existing one)"
 
-# From the release tag itself, not the checkout's working tree: local edits or
-# generated files (e.g. __pycache__) in the upstream checkout must not leak in.
+work=$(mktemp -d)
+trap 'rm -rf -- "$work"' EXIT
+oah_fetch_upstream "$work/omarchy"
+# From the release tag itself (git archive), so nothing but tracked files lands.
 mkdir -p "$dest"
-git -C "$OAH_UPSTREAM" archive "$OAH_PIN" shell | tar -x -C "$dest" --strip-components=1
+git -C "$work/omarchy" archive "$OAH_PIN" shell | tar -x -C "$dest" --strip-components=1
 printf '%s\n' "$OAH_PIN" >"$dest/.oah-upstream"
 
 mapfile -d '' -t qml < <(find "$dest" -name '*.qml' -print0)
