@@ -7,8 +7,9 @@ Hyprland's output shapes and exit codes, so upstream code keeps working:
 
   dispatch <hl.dsp.* call | o.workspaces.* call>   bspc / xdotool / xset
   monitors [all], clients, activewindow, workspaces, activeworkspace   (-j)
-  getoption <opt>               values from bspwm and OAH's picom config
-  devices                       keyboards from setxkbmap
+                                (clients/activewindow without -j: Hyprland's text form)
+  getoption <opt>               values from bspwm, OAH's picom config and XKB (input:kb_*)
+  devices [-j]                  keyboard from setxkbmap; mice/touch/tablets from xinput
   switchxkblayout <kbd|all> next|prev|N
   hyprsunset temperature [K] | identity     night light via xrandr gamma
   keyword monitor NAME,disable|NAME,...     via xrandr
@@ -488,6 +489,11 @@ def getoption(opt):
         return {"option": opt, "int": int(bspc("config", "border_width").strip()), "set": True}
     if opt == "animations:enabled":
         return {"option": opt, "int": 1, "bool": True, "set": True}
+    xkb = {"input:kb_layout": "layout", "input:kb_variant": "variant", "input:kb_options": "options",
+           "input:kb_model": "model", "input:kb_rules": "rules"}
+    if opt in xkb:
+        q, _ = xkb_query()
+        return {"option": opt, "str": q.get(xkb[opt], ""), "set": True}
     unsupported(f"getoption {opt}")
 
 
@@ -557,7 +563,95 @@ def devices():
         "options": q.get("options", ""), "active_layout_index": active,
         "active_keymap": layout_description(current[0][0]), "capsLock": False, "numLock": False, "main": True,
     }
-    return {"mice": [], "keyboards": [kb], "tablets": [], "touch": [], "switches": []}
+    mice, touch, tablets = x_pointers()
+    return {"mice": mice, "keyboards": [kb], "tablets": tablets, "touch": touch, "switches": []}
+
+
+def hypr_device_name(name, taken):
+    """Hyprland's name for an input device: the kernel's, lowercased, with spaces,
+    commas and newlines as dashes, and -1, -2 ... after a name already taken."""
+    base = re.sub(r"[ ,\n]", "-", name.lower())
+    out, n = base, 0
+    while out in taken:
+        n += 1
+        out = f"{base}-{n}"
+    taken.add(out)
+    return out
+
+
+def x_pointers():
+    """Hyprland-shaped mice, touch and tablets from `xinput list --long`: a
+    touchscreen reports direct touch, a touchpad dependent touch (Hyprland lists
+    touchpads with the mice), a tablet a pressure axis."""
+    try:
+        text = run("xinput", "list", "--long").stdout
+    except FileNotFoundError:
+        return [], [], []
+    header = re.compile(r"^\W*(?P<name>.+?)\s+id=(?P<id>\d+)\s+\[(?P<role>[^\]]+)\]")
+    devices, current = [], None
+    for line in text.splitlines():
+        m = header.match(line)
+        if m and "id=" in line:
+            current = {"name": m["name"].strip(), "id": int(m["id"]), "role": m["role"], "detail": []}
+            devices.append(current)
+        elif current:
+            current["detail"].append(line)
+    mice, touch, tablets, taken = [], [], [], set()
+    for d in devices:
+        if not d["role"].startswith("slave") or "pointer" not in d["role"] or "XTEST" in d["name"]:
+            continue
+        detail = "\n".join(d["detail"])
+        name = hypr_device_name(d["name"], taken)
+        address = hex(d["id"])
+        if re.search(r"Touch mode: direct", detail, re.I):
+            touch.append({"address": address, "name": name})
+        elif re.search(r"Label: Abs Pressure", detail):
+            tablets.append({"address": address, "type": "tablet", "name": name})
+        else:
+            mice.append({"address": address, "name": name, "defaultSpeed": 0.0, "scrollFactor": -1.0})
+    return mice, touch, tablets
+
+
+def devices_text(d):
+    """`hyprctl devices` without -j, in Hyprland's layout."""
+    yn = lambda b: "yes" if b else "no"
+    lines = ["mice:"]
+    for m in d["mice"]:
+        lines += [f"\tMouse at {m['address']}:", f"\t\t{m['name']}",
+                  f"\t\t\tdefault speed: {m['defaultSpeed']:.5f}", f"\t\t\tscroll factor: {m['scrollFactor']:.2f}"]
+    lines += ["", "Keyboards:"]
+    for k in d["keyboards"]:
+        lines += [f"\tKeyboard at {k['address']}:", f"\t\t{k['name']}",
+                  f'\t\t\trules: r "{k["rules"]}", m "{k["model"]}", l "{k["layout"]}", v "{k["variant"]}", o "{k["options"]}"',
+                  f"\t\t\tactive layout index: {k['active_layout_index']}",
+                  f"\t\t\tactive keymap: {k['active_keymap']}",
+                  f"\t\t\tcapsLock: {yn(k['capsLock'])}", f"\t\t\tnumLock: {yn(k['numLock'])}",
+                  f"\t\t\tmain: {yn(k['main'])}"]
+    lines += ["", "Tablets:"]
+    for t in d["tablets"]:
+        lines += [f"\tTablet at {t['address']}:", f"\t\t{t['name']}"]
+    lines += ["", "Touch:"]
+    for t in d["touch"]:
+        lines += [f"\tTouch Device at {t['address']}:", f"\t\t{t['name']}"]
+    lines += ["", "Switches:", ""]
+    print("\n".join(lines))
+
+
+def client_text(c):
+    """One window in `hyprctl clients`/`activewindow` text form."""
+    b = lambda v: 1 if v else 0
+    ws = c["workspace"]
+    fields = [
+        ("mapped", b(c["mapped"])), ("hidden", b(c["hidden"])), ("at", "{},{}".format(*c["at"])),
+        ("size", "{},{}".format(*c["size"])), ("workspace", f"{ws['id']} ({ws['name']})"),
+        ("floating", b(c["floating"])), ("pseudo", b(c["pseudo"])), ("monitor", c["monitor"]),
+        ("class", c["class"]), ("title", c["title"]), ("initialClass", c["initialClass"]),
+        ("initialTitle", c["initialTitle"]), ("pid", c["pid"]), ("xwayland", b(c["xwayland"])),
+        ("pinned", b(c["pinned"])), ("fullscreen", c["fullscreen"]), ("fullscreenClient", c["fullscreenClient"]),
+        ("grouped", 0), ("tags", ""), ("swallowing", 0), ("focusHistoryID", c["focusHistoryID"]),
+    ]
+    head = f"Window {c['address'].replace('0x', '')} -> {c['title']}:"
+    return "\n".join([head] + [f"\t{k}: {v}" for k, v in fields]) + "\n"
 
 
 def switchxkblayout(arg):
@@ -727,6 +821,7 @@ def main(argv):
         while flag in argv:
             i = argv.index(flag)
             del argv[i:i + 2]
+    json_out = "-j" in argv or "--json" in argv
     args = [a for a in argv if a not in ("-j", "--json", "-q", "--quiet", "-r", "--refresh")]
     if not args:
         unsupported("no command")
@@ -741,16 +836,19 @@ def main(argv):
         elif cmd == "workspaces":
             emit(workspaces)
         elif cmd == "clients":
-            emit(clients)
+            emit(clients) if json_out else print("\n".join(client_text(c) for c in clients))
         elif cmd == "activewindow":
-            emit(focused or {})
+            if json_out:
+                emit(focused or {})
+            else:
+                print(client_text(focused) if focused else "Invalid")
         else:
             active = next((m["activeWorkspace"] for m in monitors if m["focused"]), {})
             emit(next((w for w in workspaces if w["id"] == active.get("id")), active))
     elif cmd == "getoption":
         emit(getoption(rest[0] if rest else ""))
     elif cmd == "devices":
-        emit(devices())
+        emit(devices()) if json_out else devices_text(devices())
     elif cmd == "switchxkblayout":
         switchxkblayout(rest[1] if len(rest) > 1 else "next")
     elif cmd == "hyprsunset":
