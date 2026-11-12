@@ -190,6 +190,15 @@ DEFERRED = [
 ]
 
 
+# Lua-function bindings (no action text to match) that belong to Deferred
+# features, by description. Ctrl+Space (fcitx's terminal prefix) is not here:
+# apps use Ctrl+Space themselves, so it stays unbound.
+DEFERRED_FUNCTIONS = {
+    "Zoom in": "screen zoom",
+    "Reset zoom": "screen zoom",
+}
+
+
 def deferred(action):
     return next((f"Deferred: {feature}" for needle, feature in DEFERRED if needle in action), None)
 
@@ -252,6 +261,10 @@ def main():
         t, why = translate(kind, action, description)
         if t is not None and deferred(t[1]):
             t, why = None, deferred(t[1])
+            grabbed.setdefault(c, []).append((description, why))
+        elif t is None and kind == "function" and description in DEFERRED_FUNCTIONS:
+            # Unbound, Super+Ctrl+Z reaches a terminal as Ctrl+Z and suspends its job.
+            why = f"Deferred: {DEFERRED_FUNCTIONS[description]}"
             grabbed.setdefault(c, []).append((description, why))
         if t is None:
             skipped.append((keys, description, why))

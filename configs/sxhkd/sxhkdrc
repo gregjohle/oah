@@ -943,6 +943,14 @@ super + BackSpace
 super + ctrl + BackSpace
 	:
 
+# Zoom in (Deferred: screen zoom)
+super + ctrl + z
+	:
+
+# Reset zoom (Deferred: screen zoom)
+super + ctrl + alt + z
+	:
+
 # Not bound on X11 (no ready equivalent, or handled elsewhere):
 #   CTRL + SPACE                       Direct input for the terminal prefix     Lua function with no X11 equivalent yet
 #   SUPER + CTRL + F                   Tiled full screen                        Deferred: tiled fullscreen
@@ -983,5 +991,5 @@ super + ctrl + BackSpace
 #   switch:off:Lid Switch              -                                        lid/switch event (handled by the lid port, not a key)
 #   switch:on:Apple SMC power/lid events -                                        lid/switch event (handled by the lid port, not a key)
 #   switch:off:Apple SMC power/lid events -                                        lid/switch event (handled by the lid port, not a key)
-#   SUPER + CTRL + Z                   Zoom in                                  Lua function with no X11 equivalent yet
-#   SUPER + CTRL + ALT + Z             Reset zoom                               Lua function with no X11 equivalent yet
+#   SUPER + CTRL + Z                   Zoom in                                  Deferred: screen zoom
+#   SUPER + CTRL + ALT + Z             Reset zoom                               Deferred: screen zoom
