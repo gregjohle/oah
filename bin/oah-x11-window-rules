@@ -18,12 +18,14 @@ the bspwm consequences for what bspwm can do:
   center (or a size with no move) center=on, which Hyprland does for floats
   pin                            sticky=on
   no_initial_focus               focus=off
+  border_size = 0                border=off
 
 A placement already decided by a `bspc rule` (a state, rectangle or monitor,
 such as omarchy-launch-screensaver's one-shot rules) wins over these. Rules
 that match on anything else (xwayland, window state) are skipped, and other
-effects (opacity, rounding, idle_inhibit, special workspaces, ...) have no
-bspwm equivalent here; see the Deferred list on the project board.
+effects (opacity, rounding, idle_inhibit, no_screen_share, keep_aspect_ratio,
+focus tweaks, special workspaces, ...) have no bspwm equivalent here; see
+"Window rule effects" on the project board's Deferred list.
 """
 
 import ast
@@ -147,7 +149,7 @@ def main():
     for rule in rules:
         if not matches(rule.get("match", {}), window, tags):
             continue
-        for key in ("float", "tile", "fullscreen", "center", "size", "move", "pin", "no_initial_focus"):
+        for key in ("float", "tile", "fullscreen", "center", "size", "move", "pin", "no_initial_focus", "border_size"):
             if key in rule:
                 effects[key] = rule[key]
                 # Hyprland: the later of float and tile decides.
@@ -187,6 +189,8 @@ def main():
         out.append("sticky=on")
     if effects.get("no_initial_focus"):
         out.append("focus=off")
+    if effects.get("border_size") == 0:
+        out.append("border=off")
 
     print(" ".join(out))
 
