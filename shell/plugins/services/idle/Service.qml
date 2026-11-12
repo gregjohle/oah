@@ -21,7 +21,7 @@ Item {
   readonly property var idleConfig: shell && shell.shellConfig && shell.shellConfig.idle
     ? shell.shellConfig.idle : (shell && shell.idleConfig ? shell.idleConfig : ({}))
   readonly property int screensaverTimeoutSeconds: secondsFromConfig(idleConfig.screensaver, defaultScreensaverSeconds)
-  readonly property int lockTimeoutSeconds: secondsFromConfig(idleConfig.lock, defaultLockSeconds)
+  readonly property int lockTimeoutSeconds: 0 // OAH(x11): was secondsFromConfig(idleConfig.lock, defaultLockSeconds); no X11 lock yet (board: Deferred -> Lock screen)
   readonly property bool screensaverEnabled: screensaverTimeoutSeconds > 0
   readonly property bool lockEnabled: lockTimeoutSeconds > 0
   readonly property bool idleTimersEnabled: screensaverEnabled || lockEnabled

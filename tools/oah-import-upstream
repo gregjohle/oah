@@ -5,7 +5,9 @@
 # the next release.
 #
 #   - agents applications config default etc install migrations themes and the
-#     root files below are replaced as released (OAH doesn't edit them).
+#     root files below are replaced as released, except files OAH has changed
+#     (they carry an "OAH(x11)" marker), which are kept and listed for a
+#     manual merge, as in bin/.
 #   - bin/: every upstream command is copied, except files OAH has changed
 #     (they carry an "OAH(x11)" marker); those are listed for a manual merge.
 #     bin/.oah-upstream-commands lists the release's commands, so a command a
@@ -34,10 +36,20 @@ trap 'rm -rf -- "$work"' EXIT
 oah_fetch_upstream "$work/omarchy"
 src=$work/omarchy
 
+kept_files=()
 for d in "${dirs[@]}"; do
   [[ -d $src/$d ]] || oah_die "$OAH_PIN has no $d/"
   rm -rf -- "$OAH_ROOT/$d.new"
   cp -a -- "$src/$d" "$OAH_ROOT/$d.new"
+  # OAH's changed files survive the replacement.
+  if [[ -d $OAH_ROOT/$d ]]; then
+    while IFS= read -r -d '' changed; do
+      rel=${changed#"$OAH_ROOT/"}
+      mkdir -p -- "$(dirname -- "$OAH_ROOT/$d.new/${rel#"$d/"}")"
+      cp -a -- "$changed" "$OAH_ROOT/$d.new/${rel#"$d/"}"
+      kept_files+=("$rel")
+    done < <(grep -rlZ --binary-files=without-match 'OAH(x11)' -- "$OAH_ROOT/$d" || true)
+  fi
   rm -rf -- "${OAH_ROOT:?}/$d"
   mv -T -- "$OAH_ROOT/$d.new" "$OAH_ROOT/$d"
 done
@@ -85,4 +97,8 @@ fi
 if (( ${#kept[@]} )); then
   echo "Kept OAH's changed commands (merge $OAH_PIN's changes into them by hand):"
   printf '  bin/%s\n' "${kept[@]}"
+fi
+if (( ${#kept_files[@]} )); then
+  echo "Kept OAH's changed files (merge $OAH_PIN's changes into them by hand):"
+  printf '  %s\n' "${kept_files[@]}"
 fi
