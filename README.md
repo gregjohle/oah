@@ -9,7 +9,6 @@ OAH doesn't rewrite Omarchy. It ships Omarchy's own code, in Omarchy's own layou
 | Path | Purpose |
 |---|---|
 | `UPSTREAM` | The Omarchy release OAH is pinned to |
-| `tools/oah-runtime` | Builds the `OMARCHY_PATH` tree (links to this repo's entries) |
 | `tools/oah-import-upstream` | Copies the pinned release's files into this repo (re-run on each upgrade) |
 | `tools/oah-dev` | Runs the desktop in a nested, isolated X session for development |
 | `bin/` | Omarchy's commands, OAH's X11 changes made in place (marked `OAH(x11)`), and OAH's own commands |
@@ -31,4 +30,4 @@ tools/oah-dev --headless --screenshot shot.png # same, without a window (Xvfb)
 tools/oah-dev --fresh --theme "Gruvbox"        # reset the dev home with another theme
 ```
 
-The dev session is isolated from your real desktop: its own X display, its own `HOME` (`~/.cache/oah/dev-home`, seeded like a fresh Omarchy install), its own D-Bus session and its own runtime tree (`~/.cache/oah/dev-runtime`, so it never repoints an installed OAH desktop at checkout code). Logs go to `~/.local/state/oah/dev/`.
+The dev session is isolated from your real desktop: its own X display, its own `HOME` (`~/.cache/oah/dev-home`, seeded like a fresh Omarchy install), its own D-Bus session, and `OMARCHY_PATH` set to this checkout (an installed OAH keeps running its own copy). Logs go to `~/.local/state/oah/dev/`.

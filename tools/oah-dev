@@ -14,17 +14,12 @@
 #   --theme NAME         theme to seed a fresh dev home with (default "Tokyo Night")
 #
 # Paths:
-#   runtime   ${XDG_CACHE_HOME:-~/.cache}/oah/dev-runtime (own OMARCHY_PATH tree,
-#             never the installed desktop's; override with OAH_RUNTIME)
+#   code      OMARCHY_PATH is this checkout, so the dev session runs it and an
+#             installed OAH keeps running its own copy
 #   dev home  ${XDG_CACHE_HOME:-~/.cache}/oah/dev-home
 #   logs      ${XDG_STATE_HOME:-~/.local/state}/oah/dev/{xserver,bspwm,shell}.log
 
 set -euo pipefail
-
-# The dev session gets its own runtime tree. The default OAH_RUNTIME is the
-# installed desktop's OMARCHY_PATH, and rebuilding that from a checkout would
-# repoint a live OAH session at development code.
-export OAH_RUNTIME="${OAH_RUNTIME:-${XDG_CACHE_HOME:-$HOME/.cache}/oah/dev-runtime}"
 
 source "$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")/lib/common.sh"
 
@@ -121,8 +116,7 @@ else
   [[ -n ${DISPLAY:-} ]] || oah_die "Xephyr needs a host X display; use --headless"
 fi
 
-"$OAH_ROOT/tools/oah-runtime" >/dev/null
-export OMARCHY_PATH=$OAH_RUNTIME
+export OMARCHY_PATH=$OAH_ROOT
 
 mkdir -p "$DEV_LOGS"
 
@@ -139,7 +133,7 @@ dev_env() {
     XDG_SESSION_TYPE=x11 \
     XDG_CURRENT_DESKTOP=bspwm \
     QT_QPA_PLATFORM=xcb \
-    OAH_ROOT="$OAH_ROOT" OAH_RUNTIME="$OAH_RUNTIME" \
+    OAH_ROOT="$OAH_ROOT" \
     DEV_LOGS="$DEV_LOGS" \
     "$@"
 }
