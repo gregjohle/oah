@@ -168,13 +168,17 @@ done
 [[ -n $display ]] || oah_die "no free X display in :90-:119"
 
 if (( headless )); then
-  Xvfb "$display" -screen 0 "${size}x24" -nolisten tcp >"$DEV_LOGS/xserver.log" 2>&1 &
+  Xvfb "$display" -screen 0 "${size}x24" -nolisten tcp -noreset >"$DEV_LOGS/xserver.log" 2>&1 &
 else
-  Xephyr "$display" -screen "$size" -resizeable -nolisten tcp -title "OAH dev ($display)" >"$DEV_LOGS/xserver.log" 2>&1 &
+  Xephyr "$display" -screen "$size" -resizeable -nolisten tcp -noreset -title "OAH dev ($display)" >"$DEV_LOGS/xserver.log" 2>&1 &
 fi
 xserver=$!
 trap 'kill "$xserver" 2>/dev/null || true; wait "$xserver" 2>/dev/null || true' EXIT
 
+# -noreset above: by default the server resets whenever its last client
+# disconnects, closing every connection. The inner half's xprop polling could
+# be that last client while bspwm was still connecting, and bspwm then died
+# with "The server closed the connection" (the session came up without a WM).
 for _ in {1..50}; do
   [[ -e /tmp/.X11-unix/X${display#:} ]] && break
   kill -0 "$xserver" 2>/dev/null || oah_die "X server failed to start (see $DEV_LOGS/xserver.log)"
