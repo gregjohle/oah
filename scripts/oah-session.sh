@@ -30,11 +30,9 @@ export XDG_SESSION_DESKTOP=bspwm
 export QT_QPA_PLATFORM=xcb
 unset WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE
 
-OMARCHY_PATH=$("$OAH_ROOT/tools/oah-runtime" --print) || {
-  echo "oah-session: could not build the runtime tree; see above"
-  exit 1
-}
-export OMARCHY_PATH
+# OAH ships Omarchy's files in Omarchy's own layout, so OAH itself is the
+# OMARCHY_PATH (a real tree: upstream code `find`s inside it).
+export OMARCHY_PATH=$OAH_ROOT
 export PATH="$OMARCHY_PATH/bin:$PATH"
 
 # --- 2. First login: seed $HOME like an Omarchy install -------------------------

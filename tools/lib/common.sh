@@ -2,8 +2,6 @@
 # Shared path resolution for OAH tools. Source it; don't run it.
 #
 #   OAH_ROOT      this repo (derived from this file's location)
-#   OAH_RUNTIME   assembled OMARCHY_PATH tree (this repo, which ships
-#                 Omarchy's files in Omarchy's layout plus OAH's changes)
 #                 default: ${XDG_DATA_HOME:-~/.local/share}/oah/runtime
 #   OAH_UPSTREAM_URL  where import tools download the pinned release from
 #                 default: https://github.com/basecamp/omarchy.git
@@ -14,14 +12,12 @@ if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
 fi
 
 OAH_ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)
-OAH_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/oah"
 OAH_PIN=$(tr -d '[:space:]' <"$OAH_ROOT/UPSTREAM")
 
-OAH_RUNTIME="${OAH_RUNTIME:-$OAH_DATA_HOME/runtime}"
 
 OAH_UPSTREAM_URL="${OAH_UPSTREAM_URL:-https://github.com/basecamp/omarchy.git}"
 
-export OAH_ROOT OAH_RUNTIME OAH_PIN OAH_UPSTREAM_URL
+export OAH_ROOT OAH_PIN OAH_UPSTREAM_URL
 
 oah_die() {
   printf 'oah: %s\n' "$*" >&2

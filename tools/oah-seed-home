@@ -13,7 +13,7 @@
 # Upstream's scripts always use ~/.config and ~/.local/state (not
 # XDG_CONFIG_HOME/XDG_STATE_HOME), so this checks the same places.
 #
-# Requires OMARCHY_PATH (the runtime tree) and its bin/ on PATH.
+# Requires OMARCHY_PATH (the OAH folder) and its bin/ on PATH.
 #
 # Usage: oah-seed-home [--theme NAME]   (default theme: "Tokyo Night")
 
@@ -26,7 +26,7 @@ case "${1:-}" in
   *) echo "Usage: oah-seed-home [--theme NAME]" >&2; exit 2 ;;
 esac
 
-: "${OMARCHY_PATH:?OMARCHY_PATH must point at the OAH runtime tree}"
+: "${OMARCHY_PATH:?OMARCHY_PATH must point at the OAH folder}"
 config=$HOME/.config
 state=$HOME/.local/state
 marker=$state/oah/configs-seeded
