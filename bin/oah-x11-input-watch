@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+"""OAH(x11): keep input devices the user turned off disabled when X brings
+them back.
+
+Upstream's `hl.device({ name, enabled = false })` (default/hypr/disabled-input-
+device.lua) is a per-device rule: Hyprland applies it whenever a device with
+that name appears. X instead re-enables a device when it's re-added: a
+Bluetooth trackpad reconnecting after suspend, a USB replug, the i2c rebind
+in omarchy-restart-trackpad. This daemon listens for XInput2 hierarchy events
+and, when a device is added or enabled, re-applies the stored disables with
+the hyprctl stand-in's own code (reapply_disabled_devices).
+
+Usage: oah-x11-input-watch
+"""
+
+import importlib.machinery
+import importlib.util
+import os
+import sys
+
+from Xlib import display
+from Xlib.ext import xinput
+
+SLAVE_ADDED = 1 << 2      # XI2 hierarchy flags (XI2.h)
+DEVICE_ENABLED = 1 << 6
+
+
+def load_standin():
+    path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "hyprctl")
+    loader = importlib.machinery.SourceFileLoader("oah_hyprctl", path)
+    spec = importlib.util.spec_from_loader("oah_hyprctl", loader)
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+def main() -> int:
+    standin = load_standin()
+    d = display.Display()
+    if not d.has_extension("XInputExtension"):
+        print("oah-x11-input-watch: the X server has no XInput extension", file=sys.stderr)
+        return 1
+    d.xinput_query_version()
+    d.screen().root.xinput_select_events([(xinput.AllDevices, xinput.HierarchyChangedMask)])
+    d.flush()
+    standin.reapply_disabled_devices()
+    while True:
+        e = d.next_event()
+        if getattr(e, "evtype", None) != xinput.HierarchyChanged:
+            continue
+        if e.data.flags & (SLAVE_ADDED | DEVICE_ENABLED):
+            standin.reapply_disabled_devices()
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        sys.exit(0)

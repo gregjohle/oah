@@ -600,7 +600,10 @@ def x_pointer_devices():
         elif current:
             current["detail"].append(line)
     out, taken = [], set()
-    for d in devices:
+    # Number same-named devices in xinput id order: ids don't change when a
+    # device is turned off (xinput lists a disabled one last, as floating), so
+    # a disabled device keeps its name.
+    for d in sorted(devices, key=lambda d: d["id"]):
         detail = "\n".join(d["detail"])
         # A disabled device is detached from its master and listed as a
         # "floating slave" with no pointer/keyboard role; it's a pointer if it
@@ -642,9 +645,10 @@ def set_device(name, enabled):
 
 
 def reapply_disabled_devices():
-    """What upstream's default/hypr/disabled-input-device.lua does on every
-    Hyprland reload: keep a device the user turned off (omarchy-toggle-input-device
-    stores its name) disabled. X re-enables devices at login and on replug."""
+    """What upstream's default/hypr/disabled-input-device.lua does: keep a device
+    the user turned off (omarchy-toggle-input-device stores its name) disabled.
+    X re-enables devices at login and when they're re-added; reload runs this,
+    and oah-x11-input-watch runs it whenever X adds or enables a device."""
     for kind in ("touchpad", "touchscreen"):
         try:
             name = open(os.path.expanduser(f"~/.local/state/omarchy/toggles/hypr/{kind}-disabled-name")).readline().strip()

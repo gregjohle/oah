@@ -58,6 +58,8 @@ if [[ ${1:-} == "--inner" ]]; then
   # which X11 window managers don't do for unmanaged dock windows.
   setsid oah-x11-stacking >"$DEV_LOGS/stacking.log" 2>&1 &
   pids+=($!)
+  setsid oah-x11-input-watch >"$DEV_LOGS/inputwatch.log" 2>&1 &
+  pids+=($!)
 
   # The shell's panels are mostly transparent windows and need a compositor.
   # Nested X servers have no usable GL, so the dev session uses picom's
