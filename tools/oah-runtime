@@ -4,6 +4,7 @@
 #
 #   $OAH_RUNTIME/
 #     shell -> $OAH_ROOT/shell if OAH has its ported shell, else upstream's
+#     themes -> $OAH_ROOT/themes (OAH's copy of upstream's themes)
 #     bin/     every upstream command (symlinked), with $OAH_ROOT/bin/* replacing
 #              same-named upstream commands and adding new ones
 #     *     -> every other upstream entry, symlinked as-is
@@ -45,7 +46,7 @@ shopt -s dotglob nullglob
 for entry in "$OAH_UPSTREAM"/*; do
   name=${entry##*/}
   case "$name" in
-    .git | bin | shell) continue ;;
+    .git | bin | shell | themes) continue ;;
   esac
   ln -s -- "$entry" "$staging/$name"
 done
@@ -55,6 +56,9 @@ if [[ -d $OAH_ROOT/shell ]]; then
 else
   ln -s -- "$OAH_UPSTREAM/shell" "$staging/shell"
 fi
+
+[[ -d $OAH_ROOT/themes ]] || oah_die "no themes in $OAH_ROOT/themes (run tools/oah-import-themes)"
+ln -s -- "$OAH_ROOT/themes" "$staging/themes"
 
 mkdir "$staging/bin"
 for cmd in "$OAH_UPSTREAM"/bin/*; do

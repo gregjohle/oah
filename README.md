@@ -14,6 +14,7 @@ OAH doesn't rewrite Omarchy. It runs Omarchy's own code, pinned to a formal rele
 | `bin/` | X11 replacements for upstream `omarchy-*` commands (override same-named upstream commands) |
 | `shell/` | OAH's ported copy of upstream's Quickshell shell (once the port starts) |
 | `configs/` | bspwm, sxhkd, picom configs |
+| `themes/` | Omarchy's themes, copied from the pinned release (`tools/oah-import-themes`); OAH ships them itself |
 
 ## Development
 
