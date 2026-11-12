@@ -88,6 +88,8 @@ start() {
 
 # The shell's panels are unmanaged dock windows; keep them in their layers.
 start stacking oah-x11-stacking
+# Input devices the user turned off stay off when X re-adds them.
+start inputwatch oah-x11-input-watch
 # The shell draws transparent panels and needs a compositor. picom's GLX
 # backend needs working GL; without it (VMs, some drivers) picom exits at once,
 # so fall back to the xrender backend.
