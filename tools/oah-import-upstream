@@ -8,6 +8,8 @@
 #     root files below are replaced as released (OAH doesn't edit them).
 #   - bin/: every upstream command is copied, except files OAH has changed
 #     (they carry an "OAH(x11)" marker); those are listed for a manual merge.
+#     bin/.oah-upstream-commands lists the release's commands, so a command a
+#     later release drops is removed (or listed, if OAH changed it).
 #   - shell/ has OAH edits throughout; it comes from tools/oah-import-shell.
 #   - manual/, test/, docs/, plans/ and the repo's own dotfiles aren't used at
 #     runtime and aren't copied.
@@ -20,7 +22,7 @@ source "$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")/lib/common.sh"
 
 case "${1:-}" in
   "") ;;
-  -h|--help) sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  -h|--help) sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
   *) oah_die "unknown argument: $1" ;;
 esac
 
@@ -46,7 +48,19 @@ done
 cp -- "$src/LICENSE" "$OAH_ROOT/LICENSE.omarchy"
 
 mkdir -p "$OAH_ROOT/bin"
-copied=0 kept=()
+manifest=$OAH_ROOT/bin/.oah-upstream-commands
+copied=0 kept=() removed=() dropped_kept=()
+if [[ -f $manifest ]]; then
+  while IFS= read -r name; do
+    [[ -n $name && ! -e $src/bin/$name && -e $OAH_ROOT/bin/$name ]] || continue
+    if grep -q 'OAH(x11)' "$OAH_ROOT/bin/$name"; then
+      dropped_kept+=("$name")
+    else
+      rm -f -- "$OAH_ROOT/bin/$name"
+      removed+=("$name")
+    fi
+  done <"$manifest"
+fi
 for cmd in "$src"/bin/*; do
   name=${cmd##*/}
   if [[ -e $OAH_ROOT/bin/$name ]] && grep -q 'OAH(x11)' "$OAH_ROOT/bin/$name"; then
@@ -57,7 +71,17 @@ for cmd in "$src"/bin/*; do
   copied=$((copied + 1))
 done
 
+(cd "$src/bin" && printf '%s\n' *) >"$manifest"
+
 echo "Imported Omarchy $OAH_PIN: ${dirs[*]}, ${files[*]}, $copied bin commands"
+if (( ${#removed[@]} )); then
+  echo "Removed commands $OAH_PIN no longer has:"
+  printf '  bin/%s\n' "${removed[@]}"
+fi
+if (( ${#dropped_kept[@]} )); then
+  echo "$OAH_PIN dropped these commands, but OAH changed them (decide by hand):"
+  printf '  bin/%s\n' "${dropped_kept[@]}"
+fi
 if (( ${#kept[@]} )); then
   echo "Kept OAH's changed commands (merge $OAH_PIN's changes into them by hand):"
   printf '  bin/%s\n' "${kept[@]}"
