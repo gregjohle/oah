@@ -601,9 +601,13 @@ def x_pointer_devices():
             current["detail"].append(line)
     out, taken = [], set()
     for d in devices:
-        if not d["role"].startswith("slave") or "pointer" not in d["role"] or "XTEST" in d["name"]:
-            continue
         detail = "\n".join(d["detail"])
+        # A disabled device is detached from its master and listed as a
+        # "floating slave" with no pointer/keyboard role; it's a pointer if it
+        # has axes (keyboards have none).
+        floating_pointer = d["role"].startswith("floating") and re.search(r"XIValuatorClass|XITouchClass", detail)
+        if "XTEST" in d["name"] or not (floating_pointer or (d["role"].startswith("slave") and "pointer" in d["role"])):
+            continue
         if re.search(r"Touch mode: direct", detail, re.I):
             kind = "touch"
         elif re.search(r"Label: Abs Pressure", detail):
