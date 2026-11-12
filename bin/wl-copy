@@ -5,7 +5,7 @@
 #
 #   wl-copy [-t|--type MIME] [--sensitive] [-f|--foreground] [-p|--primary]
 #           [-n|--trim-newline] [-o|--paste-once] [--] [TEXT...]
-#   wl-copy -c|--clear [-p|--primary]
+#   wl-copy -c|--clear [-p|--primary]   (leaves the selection with no owner)
 #
 # Data comes from TEXT (joined with spaces) or stdin. Without --foreground,
 # xclip keeps serving the selection in the background, as wl-copy does.
@@ -37,10 +37,21 @@ command -v xclip >/dev/null || { echo "wl-copy (OAH x11): needs xclip" >&2; exit
 state_dir="${XDG_RUNTIME_DIR:-/tmp}/oah"
 sensitive_file="$state_dir/clipboard-sensitive"
 
-tmp=$(mktemp) || exit 1
 if (( clear )); then
-  : >"$tmp"
-elif (( $# )); then
+  # Like wl-copy --clear: no owner afterwards, so `wl-paste` reports "Nothing
+  # is copied". The xclip serving the old content gets SelectionClear and exits.
+  rm -f "${XDG_RUNTIME_DIR:-/tmp}/oah/clipboard-sensitive"
+  exec python3 -c '
+import sys
+from Xlib import X, display
+d = display.Display()
+d.set_selection_owner(d.intern_atom(sys.argv[1]), X.NONE, X.CurrentTime)
+d.sync()
+' "$( [[ $selection == primary ]] && echo PRIMARY || echo CLIPBOARD )"
+fi
+
+tmp=$(mktemp) || exit 1
+if (( $# )); then
   printf '%s' "$*" >"$tmp"
 else
   cat >"$tmp"
