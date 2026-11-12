@@ -2,6 +2,13 @@
 
 # omarchy:summary=Launch the Omarchy screensaver in the default terminal on the system with the correct font configuration.
 
+# OAH(x11): upstream opens one fullscreen screensaver terminal per monitor
+# through Hyprland (focus the monitor, exec with a [workspace] rule, wait on
+# Hyprland's event socket for openwindow). On bspwm, a one-shot rule puts the
+# next screensaver window on the monitor, fullscreen and focused
+# (default/hypr/apps/system.lua: fullscreen), and the script waits for that
+# window to appear. The rest is upstream's.
+
 # Exit early if screensaver is already running
 pgrep -f '[o]rg.omarchy.screensaver' && exit 0
 
@@ -10,7 +17,7 @@ if omarchy-toggle-enabled screensaver-off && [[ $1 != "force" ]]; then
   exit 1
 fi
 
-focused=$(omarchy-hyprland-monitor-focused)
+focused=$(bspc query -M -m focused --names) # OAH(x11): was omarchy-hyprland-monitor-focused
 terminal=$(xdg-terminal-exec --print-id)
 
 case $terminal in
@@ -21,66 +28,64 @@ case $terminal in
   ;;
 esac
 
-hypr_focus_monitor() {
-  hyprctl dispatch "hl.dsp.focus({ monitor = \"$1\" })" >/dev/null 2>&1 || hyprctl dispatch focusmonitor "$1" >/dev/null
-}
-
-hypr_exec() {
-  local command
-  printf -v command '%q ' "$@"
-
-  hyprctl dispatch "hl.dsp.exec_cmd([[[workspace $workspace] $command]])" >/dev/null 2>&1 ||
-    hyprctl dispatch exec -- "[workspace $workspace]" bash -lc "$command" >/dev/null
-}
-
-SOCKET="$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock"
-
-# Open Hyprland's event stream before spawning anything, so a terminal that maps
-# quickly can't emit its openwindow event before we are listening for it.
-exec {events}< <(socat -U - "UNIX-CONNECT:$SOCKET")
-
-# hypr_exec is async and a new window maps on whatever monitor is focused at that
-# moment. Block until this monitor's screensaver actually opens before moving
-# focus on -- otherwise slow-starting terminals all pile onto the last monitor.
-# The deadline is a safety net in case the window never appears.
-wait_for_screensaver_window() {
-  local line deadline=$((SECONDS + 5))
-  while ((SECONDS < deadline)) && IFS= read -r -t $((deadline - SECONDS)) -u "$events" line; do
-    [[ $line == openwindow\>\>*,org.omarchy.screensaver,* ]] && return 0
+# OAH(x11): screensaver windows that bspwm manages right now.
+screensaver_windows() {
+  local node
+  for node in $(bspc query -N -n .window 2>/dev/null); do
+    xprop -id "$node" WM_CLASS 2>/dev/null | grep -q '"org\.omarchy\.screensaver"' && echo "$node"
   done
 }
 
-while read -r m special; do
-  hypr_focus_monitor "$m"
-  # Share a special workspace that is already showing, like the scratchpad, so it is still open afterwards.
-  workspace=${special:-special:screensaver-$m}
+# OAH(x11): was hypr_exec; detached so the terminal outlives this script.
+launch() {
+  setsid -f "$@" >/dev/null 2>&1
+}
+
+# Block until this monitor's screensaver actually opens before moving on, so
+# slow-starting terminals don't land on the wrong monitor. The deadline is a
+# safety net in case the window never appears.
+wait_for_screensaver_window() {
+  local before=$1 deadline=$((SECONDS + 5))
+  while ((SECONDS < deadline)); do
+    (($(screensaver_windows | wc -l) > before)) && return 0
+    sleep 0.05
+  done
+}
+
+for m in $(bspc query -M --names); do
+  count=$(screensaver_windows | wc -l)
+  # OAH(x11): was hypr_focus_monitor + the [workspace special:screensaver-$m] rule.
+  bspc rule -a org.omarchy.screensaver -o monitor="$m" state=fullscreen focus=on
 
   case $terminal in
   *Alacritty*)
-    hypr_exec alacritty --class=org.omarchy.screensaver --config-file "$OMARCHY_PATH/default/alacritty/screensaver.toml" -e omarchy-screensaver
+    launch alacritty --class=org.omarchy.screensaver --config-file "$OMARCHY_PATH/default/alacritty/screensaver.toml" -e omarchy-screensaver
     ;;
   *ghostty*)
-    hypr_exec ghostty --class=org.omarchy.screensaver --config-file="$OMARCHY_PATH/default/ghostty/screensaver" --font-size=18 -e omarchy-screensaver
+    launch ghostty --class=org.omarchy.screensaver --config-file="$OMARCHY_PATH/default/ghostty/screensaver" --font-size=18 -e omarchy-screensaver
     ;;
   *foot*)
-    hypr_exec foot --app-id=org.omarchy.screensaver --config="$OMARCHY_PATH/default/foot/screensaver.ini" -e omarchy-screensaver
+    launch foot --app-id=org.omarchy.screensaver --config="$OMARCHY_PATH/default/foot/screensaver.ini" -e omarchy-screensaver
     ;;
   *kitty*)
-    hypr_exec kitty --class=org.omarchy.screensaver --override font_size=18 --override window_padding_width=0 -e omarchy-screensaver
+    launch kitty --class=org.omarchy.screensaver --override font_size=18 --override window_padding_width=0 -e omarchy-screensaver
     ;;
   esac
 
-  wait_for_screensaver_window
-done < <(hyprctl monitors -j | jq -r '.[] | "\(.name) \(.specialWorkspace.name)"')
+  wait_for_screensaver_window "$count"
+done
 
-hypr_focus_monitor "$focused"
+# OAH(x11): a one-shot rule whose window never came would catch the next
+# screensaver; drop any left over.
+bspc rule -r org.omarchy.screensaver 2>/dev/null
 
-# Emptying a special workspace focuses its monitor, so the last screensaver to close would take focus
-# with it. Hand focus back to the monitor that had it once they are all gone.
-# The class goes through the environment, since in argv the screensaver's pgrep and pkill would match it.
+bspc monitor -f "$focused" # OAH(x11): was hypr_focus_monitor
+
+# Closing the last screensaver can leave focus on another monitor. Hand focus
+# back to the monitor that had it once they are all gone.
 (
-  while hyprctl clients -j | SCREENSAVER=org.omarchy.screensaver jq -e 'any(.[]; .mapped and .class == env.SCREENSAVER)' >/dev/null; do
-    IFS= read -r -u "$events" line || exit
+  while [[ -n $(screensaver_windows) ]]; do
+    sleep 0.5
   done
-  hypr_focus_monitor "$focused"
+  bspc monitor -f "$focused"
 ) >/dev/null 2>&1 &
