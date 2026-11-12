@@ -67,7 +67,9 @@ if [[ ${1:-} == "--inner" ]]; then
   # The shell's panels are mostly transparent windows and need a compositor.
   # Nested X servers have no usable GL, so the dev session uses picom's
   # xrender backend; the look comes from the same config a real session uses.
-  setsid picom --config "$OAH_ROOT/configs/picom/picom.conf" --backend xrender --no-vsync \
+  # --no-use-damage: see start_picom in scripts/oah-session.sh (stale black
+  # area under the bar's window after the wallpaper fades in).
+  setsid picom --config "$OAH_ROOT/configs/picom/picom.conf" --backend xrender --no-vsync --no-use-damage \
     >"$DEV_LOGS/picom.log" 2>&1 &
   pids+=($!)
 

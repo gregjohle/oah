@@ -95,14 +95,19 @@ start stacking oah-x11-stacking
 # so fall back to the xrender backend.
 # OAH_PICOM_BACKEND=xrender forces the fallback up front (VMs whose software
 # GL starts but renders wrong, which the exit check can't detect).
+# On xrender, picom's damage tracking loses the end of the wallpaper's fade-in
+# under the bar's screen-sized window and leaves that area black, so xrender
+# always redraws the whole screen (--no-use-damage).
 start_picom() {
+  local extra=()
+  [[ ${OAH_PICOM_BACKEND:-} == xrender ]] && extra=(--no-use-damage)
   picom --config "$OAH_ROOT/configs/picom/picom.conf" ${OAH_PICOM_BACKEND:+--backend "$OAH_PICOM_BACKEND"} \
-    >>"$LOGS/picom.log" 2>&1 &
+    "${extra[@]}" >>"$LOGS/picom.log" 2>&1 &
   local pid=$!
   sleep 1.5
   if ! kill -0 "$pid" 2>/dev/null; then
     echo "oah-session: picom (glx) exited; retrying with the xrender backend"
-    picom --config "$OAH_ROOT/configs/picom/picom.conf" --backend xrender >>"$LOGS/picom.log" 2>&1 &
+    picom --config "$OAH_ROOT/configs/picom/picom.conf" --backend xrender --no-use-damage >>"$LOGS/picom.log" 2>&1 &
     pid=$!
   fi
   children+=("$pid")
