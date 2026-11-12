@@ -39,8 +39,12 @@ if [[ ${1:-} == "--inner" ]]; then
   screenshot=$1 after=$2
 
   pids=()
+  watchdog=""
   stop_inner() {
     local pid
+    # The watchdog first, or stopping bspwm below would set it off.
+    # (|| true: under set -e a watchdog that already exited must not end the trap here.)
+    [[ -n $watchdog ]] && { kill "$watchdog" 2>/dev/null || true; }
     for pid in "${pids[@]}"; do kill -TERM -- "-$pid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null || true; done
   }
   trap stop_inner EXIT
@@ -48,11 +52,23 @@ if [[ ${1:-} == "--inner" ]]; then
   setsid bspwm -c "$OAH_ROOT/configs/bspwm/bspwmrc" >"$DEV_LOGS/bspwm.log" 2>&1 &
   pids+=($!)
 
+  bspwm_pid=$!
+
   # Give bspwm a moment to own the root window before the shell maps panels.
   for _ in {1..50}; do
     xprop -root _NET_SUPPORTING_WM_CHECK >/dev/null 2>&1 && break
     sleep 0.1
   done
+
+  # A session without its window manager looks almost normal (the shell still
+  # draws), so say loudly when bspwm isn't there; it has happened at startup.
+  bspwm_gone() {
+    echo "oah-dev: WARNING: bspwm is not running: $(tail -n 1 "$DEV_LOGS/bspwm.log" 2>/dev/null)" >&2
+  }
+  # Only while the X server is still up: on a normal teardown bspwm goes with it.
+  ( while kill -0 "$bspwm_pid" 2>/dev/null; do sleep 1; done
+    xprop -root >/dev/null 2>&1 && bspwm_gone ) &
+  watchdog=$!
 
   # Keeps the shell's panels in their layers (wallpaper below, bar above),
   # which X11 window managers don't do for unmanaged dock windows.
@@ -75,6 +91,7 @@ if [[ ${1:-} == "--inner" ]]; then
 
   if [[ -n $screenshot ]]; then
     sleep "$after"
+    kill -0 "$bspwm_pid" 2>/dev/null || oah_die "bspwm exited before the screenshot (see $DEV_LOGS/bspwm.log)"
     import -window root "$screenshot"
     echo "Screenshot: $screenshot"
     exit 0
@@ -168,13 +185,17 @@ done
 [[ -n $display ]] || oah_die "no free X display in :90-:119"
 
 if (( headless )); then
-  Xvfb "$display" -screen 0 "${size}x24" -nolisten tcp >"$DEV_LOGS/xserver.log" 2>&1 &
+  Xvfb "$display" -screen 0 "${size}x24" -nolisten tcp -noreset >"$DEV_LOGS/xserver.log" 2>&1 &
 else
-  Xephyr "$display" -screen "$size" -resizeable -nolisten tcp -title "OAH dev ($display)" >"$DEV_LOGS/xserver.log" 2>&1 &
+  Xephyr "$display" -screen "$size" -resizeable -nolisten tcp -noreset -title "OAH dev ($display)" >"$DEV_LOGS/xserver.log" 2>&1 &
 fi
 xserver=$!
 trap 'kill "$xserver" 2>/dev/null || true; wait "$xserver" 2>/dev/null || true' EXIT
 
+# -noreset above: by default the server resets whenever its last client
+# disconnects, closing every connection. The inner half's xprop polling could
+# be that last client while bspwm was still connecting, and bspwm then died
+# with "The server closed the connection" (the session came up without a WM).
 for _ in {1..50}; do
   [[ -e /tmp/.X11-unix/X${display#:} ]] && break
   kill -0 "$xserver" 2>/dev/null || oah_die "X server failed to start (see $DEV_LOGS/xserver.log)"
