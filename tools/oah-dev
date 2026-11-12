@@ -39,8 +39,11 @@ if [[ ${1:-} == "--inner" ]]; then
   screenshot=$1 after=$2
 
   pids=()
+  watchdog=""
   stop_inner() {
     local pid
+    # The watchdog first, or stopping bspwm below would set it off.
+    [[ -n $watchdog ]] && kill "$watchdog" 2>/dev/null
     for pid in "${pids[@]}"; do kill -TERM -- "-$pid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null || true; done
   }
   trap stop_inner EXIT
@@ -61,7 +64,10 @@ if [[ ${1:-} == "--inner" ]]; then
   bspwm_gone() {
     echo "oah-dev: WARNING: bspwm is not running: $(tail -n 1 "$DEV_LOGS/bspwm.log" 2>/dev/null)" >&2
   }
-  ( while kill -0 "$bspwm_pid" 2>/dev/null; do sleep 1; done; bspwm_gone ) &
+  # Only while the X server is still up: on a normal teardown bspwm goes with it.
+  ( while kill -0 "$bspwm_pid" 2>/dev/null; do sleep 1; done
+    xprop -root >/dev/null 2>&1 && bspwm_gone ) &
+  watchdog=$!
 
   # Keeps the shell's panels in their layers (wallpaper below, bar above),
   # which X11 window managers don't do for unmanaged dock windows.
