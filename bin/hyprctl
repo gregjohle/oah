@@ -139,7 +139,7 @@ def collect(state, include_disabled=False):
             "width": rect["width"], "height": rect["height"],
             "refreshRate": outputs.get(m["name"], {}).get("rate", 60.0),
             "x": rect["x"], "y": rect["y"], "scale": 1.0, "transform": 0,
-            "focused": focused_mon, "dpmsStatus": True, "vrr": False, "disabled": False,
+            "focused": focused_mon, "dpmsStatus": True, "vrr": False, "disabled": False, "mirrorOf": "none",
             "reserved": [m["padding"]["left"], m["padding"]["top"], m["padding"]["right"], m["padding"]["bottom"]],
             "activeWorkspace": {"id": -1, "name": ""}, "specialWorkspace": {"id": 0, "name": ""},
         }
@@ -187,7 +187,7 @@ def collect(state, include_disabled=False):
                 monitors.append({
                     "id": len(monitors), "name": name, "description": name, "make": "", "model": "", "serial": "",
                     "width": 0, "height": 0, "refreshRate": o["rate"], "x": 0, "y": 0, "scale": 1.0,
-                    "transform": 0, "focused": False, "dpmsStatus": False, "vrr": False, "disabled": True,
+                    "transform": 0, "focused": False, "dpmsStatus": False, "vrr": False, "disabled": True, "mirrorOf": "none",
                     "reserved": [0, 0, 0, 0], "activeWorkspace": {"id": -1, "name": ""},
                     "specialWorkspace": {"id": 0, "name": ""},
                 })
