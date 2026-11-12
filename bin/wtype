@@ -1,0 +1,45 @@
+#!/bin/bash
+# OAH(x11): stand-in for `wtype` on X11, through xdotool. Upstream pastes with
+# `wtype -M shift -k Insert -m shift` (clipboard and emoji pickers) and types
+# text with `wtype "$text"`. Steps run in order, as wtype runs them:
+#
+#   -M MOD  press a modifier     -m MOD  release it
+#   -k KEY  tap a key            -P KEY  press a key    -p KEY  release it
+#   -s MS   sleep                -d MS   delay between typed characters
+#   TEXT    type it ("-" reads the text from stdin)
+#
+# Modifier and key names are xkb names, which xdotool shares.
+
+set -uo pipefail
+
+command -v xdotool >/dev/null || { echo "wtype (OAH x11): needs xdotool" >&2; exit 1; }
+
+modifier() {
+  case "${1,,}" in
+    shift) echo shift ;;
+    ctrl|control) echo ctrl ;;
+    alt) echo alt ;;
+    logo|win|super) echo super ;;
+    altgr) echo ISO_Level3_Shift ;;
+    capslock) echo Caps_Lock ;;
+    *) echo "wtype (OAH x11): unknown modifier $1" >&2; exit 1 ;;
+  esac
+}
+
+delay=12
+(( $# )) || { echo "Usage: wtype [-M mod] [-m mod] [-k key] [-P key] [-p key] [-s ms] [-d ms] [text]" >&2; exit 1; }
+while (( $# )); do
+  case "$1" in
+    -M) xdotool keydown "$(modifier "$2")"; shift 2 ;;
+    -m) xdotool keyup "$(modifier "$2")"; shift 2 ;;
+    -k) xdotool key "$2"; shift 2 ;;
+    -P) xdotool keydown "$2"; shift 2 ;;
+    -p) xdotool keyup "$2"; shift 2 ;;
+    -s) sleep "$(awk -v ms="$2" 'BEGIN { print ms / 1000 }')"; shift 2 ;;
+    -d) delay=$2; shift 2 ;;
+    --) shift; for text in "$@"; do xdotool type --delay "$delay" -- "$text"; done; break ;;
+    -) xdotool type --delay "$delay" --file -; shift ;;
+    -*) echo "wtype (OAH x11): unsupported option $1" >&2; exit 1 ;;
+    *) xdotool type --delay "$delay" -- "$1"; shift ;;
+  esac
+done
