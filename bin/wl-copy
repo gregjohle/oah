@@ -1,0 +1,77 @@
+#!/bin/bash
+# OAH(x11): stand-in for wl-clipboard's `wl-copy` on X11, through xclip.
+# Upstream copies with wl-copy throughout (clipboard and emoji pickers,
+# notifications, panels, capture commands); this covers the options they use:
+#
+#   wl-copy [-t|--type MIME] [--sensitive] [-f|--foreground] [-p|--primary]
+#           [-n|--trim-newline] [-o|--paste-once] [--] [TEXT...]
+#   wl-copy -c|--clear [-p|--primary]
+#
+# Data comes from TEXT (joined with spaces) or stdin. Without --foreground,
+# xclip keeps serving the selection in the background, as wl-copy does.
+# --sensitive: X11 has no flag for it, so the content's hash is recorded and
+# OAH's `wl-paste --watch` reports it as CLIPBOARD_STATE=sensitive, which keeps
+# it out of the clipboard history like on Wayland.
+
+set -uo pipefail
+
+type="" sensitive=0 foreground=0 clear=0 trim=0 selection=clipboard
+while (( $# )); do
+  case "$1" in
+    -t|--type) type=${2:-}; shift 2 ;;
+    --type=*) type=${1#--type=}; shift ;;
+    --sensitive) sensitive=1; shift ;;
+    -f|--foreground) foreground=1; shift ;;
+    -c|--clear) clear=1; shift ;;
+    -p|--primary) selection=primary; shift ;;
+    -n|--trim-newline) trim=1; shift ;;
+    -o|--paste-once|-r|--regular) shift ;;
+    --) shift; break ;;
+    -*) echo "wl-copy (OAH x11): unsupported option $1" >&2; exit 1 ;;
+    *) break ;;
+  esac
+done
+
+command -v xclip >/dev/null || { echo "wl-copy (OAH x11): needs xclip" >&2; exit 1; }
+
+state_dir="${XDG_RUNTIME_DIR:-/tmp}/oah"
+sensitive_file="$state_dir/clipboard-sensitive"
+
+tmp=$(mktemp) || exit 1
+if (( clear )); then
+  : >"$tmp"
+elif (( $# )); then
+  printf '%s' "$*" >"$tmp"
+else
+  cat >"$tmp"
+fi
+if (( trim )) && [[ $(tail -c1 "$tmp" | od -An -c | tr -d ' ') == '\n' ]]; then
+  truncate -s -1 "$tmp"
+fi
+
+mkdir -p "$state_dir"
+if (( sensitive )); then
+  sha256sum <"$tmp" | cut -d' ' -f1 >"$sensitive_file"
+else
+  rm -f "$sensitive_file"
+fi
+
+# Plain text goes out under xclip's default targets (UTF8_STRING, STRING,
+# TEXT), which every X11 app asks for; a text/plain-only target would leave
+# most of them with nothing to paste. Other types are offered as given.
+args=(-selection "$selection" -i)
+case "$type" in
+  ""|text|text/plain|"text/plain;charset=utf-8"|UTF8_STRING|STRING|TEXT) ;;
+  *) args+=(-t "$type") ;;
+esac
+
+# Hand xclip the data on an open descriptor so the temp file can go now.
+exec 3<"$tmp"
+rm -f "$tmp"
+if (( foreground )); then
+  # Serves until another client takes the selection or it is killed.
+  exec xclip "${args[@]}" -quiet <&3 >/dev/null 2>&1
+fi
+# xclip forks to keep serving; detach its output so callers reading ours
+# (command substitution, the shell's Process) aren't held open.
+xclip "${args[@]}" <&3 >/dev/null 2>&1

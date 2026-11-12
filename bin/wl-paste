@@ -1,0 +1,155 @@
+#!/usr/bin/env python3
+"""OAH(x11): stand-in for wl-clipboard's `wl-paste` on X11.
+
+Upstream reads the clipboard with wl-paste (the clipboard history plugin, the
+capture script, notifications, omarchy-menu-share). This covers what they use:
+
+  wl-paste [-p|--primary] [-n|--no-newline] [-t|--type TYPE]
+  wl-paste [-p|--primary] -l|--list-types
+  wl-paste [-p|--primary] [-t|--type TYPE] -w|--watch COMMAND...
+
+Reads go through xclip. --watch listens for selection changes with XFixes and
+runs COMMAND for each new copy that offers TYPE, with the content on stdin and
+CLIPBOARD_STATE set to "data", or "sensitive" for content OAH's wl-copy was
+given with --sensitive (upstream's capture script then leaves it out of the
+history). TYPE "text" matches any text type, as in wl-paste.
+"""
+
+import hashlib
+import os
+import subprocess
+import sys
+
+TEXT_TARGETS = ["UTF8_STRING", "text/plain;charset=utf-8", "text/plain", "STRING", "TEXT"]
+META_TARGETS = {"TARGETS", "TIMESTAMP", "MULTIPLE", "SAVE_TARGETS", "DELETE", "INSERT_PROPERTY", "INSERT_SELECTION"}
+
+
+def fail(msg, code=1):
+    print(f"wl-paste (OAH x11): {msg}", file=sys.stderr)
+    sys.exit(code)
+
+
+def xclip_out(selection, target):
+    try:
+        r = subprocess.run(["xclip", "-selection", selection, "-o", "-t", target],
+                           capture_output=True, timeout=2)
+    except subprocess.TimeoutExpired:
+        return None
+    except FileNotFoundError:
+        fail("needs xclip")
+    return r.stdout if r.returncode == 0 else None
+
+
+def targets(selection):
+    out = xclip_out(selection, "TARGETS")
+    if out is None:
+        return []
+    return [t for t in out.decode(errors="replace").split() if t not in META_TARGETS]
+
+
+def is_text(target):
+    return target in TEXT_TARGETS or target.startswith("text/")
+
+
+def pick(offered, wanted):
+    """The target to read for TYPE `wanted` (None = automatic, like wl-paste)."""
+    if wanted in (None, "text") or (wanted or "").startswith("text/plain"):
+        for t in TEXT_TARGETS:
+            if t in offered:
+                return t
+        if wanted is None:
+            return offered[0] if offered else None
+        return next((t for t in offered if is_text(t)), None)
+    return wanted if wanted in offered else None
+
+
+def sensitive(data):
+    path = os.path.join(os.environ.get("XDG_RUNTIME_DIR") or "/tmp", "oah", "clipboard-sensitive")
+    try:
+        recorded = open(path).read().strip()
+    except OSError:
+        return False
+    return recorded == hashlib.sha256(data).hexdigest()
+
+
+def watch(selection, wanted, command):
+    from Xlib import X, display
+    from Xlib.ext import xfixes
+
+    d = display.Display()
+    if not d.has_extension("XFIXES"):
+        fail("the X server has no XFIXES extension")
+    d.xfixes_query_version()
+    atom = d.intern_atom("CLIPBOARD" if selection == "clipboard" else "PRIMARY")
+    d.xfixes_select_selection_input(d.screen().root, atom, xfixes.XFixesSetSelectionOwnerNotifyMask)
+    d.flush()
+    # python-xlib names extension events as (type, sub_code).
+    owner_type, owner_sub = d.extension_event.SetSelectionOwnerNotify
+    while True:
+        event = d.next_event()
+        if event.type != owner_type or getattr(event, "sub_code", 0) != owner_sub or event.owner == X.NONE:
+            continue
+        target = pick(targets(selection), wanted)
+        if target is None:
+            continue
+        data = xclip_out(selection, target)
+        if not data:
+            continue
+        env = dict(os.environ, CLIPBOARD_STATE="sensitive" if sensitive(data) else "data")
+        try:
+            subprocess.run(command, input=data, env=env)
+        except OSError as e:
+            print(f"wl-paste (OAH x11): {e}", file=sys.stderr)
+
+
+def main(argv):
+    selection, wanted, no_newline, list_types, command = "clipboard", None, False, False, None
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a in ("-p", "--primary"):
+            selection = "primary"
+        elif a in ("-n", "--no-newline"):
+            no_newline = True
+        elif a in ("-l", "--list-types"):
+            list_types = True
+        elif a in ("-t", "--type"):
+            i += 1
+            wanted = argv[i] if i < len(argv) else fail("--type needs a value")
+        elif a.startswith("--type="):
+            wanted = a.split("=", 1)[1]
+        elif a in ("-w", "--watch"):
+            command = argv[i + 1:]
+            if not command:
+                fail("--watch needs a command")
+            break
+        else:
+            fail(f"unsupported option {a}")
+        i += 1
+
+    if command:
+        watch(selection, wanted, command)
+        return
+
+    offered = targets(selection)
+    if not offered:
+        fail("Nothing is copied")
+    if list_types:
+        print("\n".join(offered))
+        return
+    target = pick(offered, wanted)
+    if target is None:
+        fail("No suitable type of content copied")
+    data = xclip_out(selection, target)
+    if data is None:
+        fail("Nothing is copied")
+    if is_text(target) and not no_newline:
+        data += b"\n"
+    sys.stdout.buffer.write(data)
+
+
+if __name__ == "__main__":
+    try:
+        main(sys.argv[1:])
+    except (KeyboardInterrupt, BrokenPipeError):
+        sys.exit(1)
