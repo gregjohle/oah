@@ -814,6 +814,135 @@ super + shift + x
 super + shift + alt + x
 	oah-bind 205
 
+# Deferred features (board): grabbed and doing nothing, so the key doesn't reach the focused app.
+# Tiled full screen (Deferred: tiled fullscreen)
+super + ctrl + f
+	:
+
+# Full width (Deferred: full width (in-layout maximize))
+super + alt + f
+	:
+
+# Save window width (Deferred: scrolling layout (window width))
+super + alt + Home
+	:
+
+# Restore window width (Deferred: scrolling layout (window width))
+super + Home
+	:
+
+# Cycle workspace layout (Deferred: scrolling/floating workspace layouts)
+super + l
+	:
+
+# Cycle workspace layout back (Deferred: scrolling/floating workspace layouts)
+super + alt + l
+	:
+
+# Toggle scratchpad (Deferred: special workspaces (scratchpad, Quake console))
+super + s
+	:
+
+# Move window to scratchpad (Deferred: special workspaces (scratchpad, Quake console))
+super + alt + s
+	:
+
+# Toggle Quake console (Deferred: special workspaces (scratchpad, Quake console))
+super + grave
+	:
+
+# Minimize window to the dock (Deferred: minimize)
+super + m
+	:
+
+# Move window to Quake console (Deferred: special workspaces (scratchpad, Quake console))
+super + shift + grave
+	:
+
+# Toggle window grouping (Deferred: window groups)
+super + g
+	:
+
+# Move active window out of group (Deferred: window groups)
+super + alt + g
+	:
+
+# Move window to group on left (Deferred: window groups)
+super + alt + Left
+	:
+
+# Move window to group on right (Deferred: window groups)
+super + alt + Right
+	:
+
+# Move window to group on top (Deferred: window groups)
+super + alt + Up
+	:
+
+# Move window to group on bottom (Deferred: window groups)
+super + alt + Down
+	:
+
+# Next window in group (Deferred: window groups)
+super + alt + Tab
+	:
+
+# Previous window in group (Deferred: window groups)
+super + alt + shift + Tab
+	:
+
+# Move grouped window focus left (Deferred: window groups)
+super + ctrl + Left
+	:
+
+# Move grouped window focus right (Deferred: window groups)
+super + ctrl + Right
+	:
+
+# Next window in group (Deferred: window groups)
+super + alt + button5
+	:
+
+# Previous window in group (Deferred: window groups)
+super + alt + button4
+	:
+
+# Switch to group window 1 (Deferred: window groups)
+super + alt + 1
+	:
+
+# Switch to group window 2 (Deferred: window groups)
+super + alt + 2
+	:
+
+# Switch to group window 3 (Deferred: window groups)
+super + alt + 3
+	:
+
+# Switch to group window 4 (Deferred: window groups)
+super + alt + 4
+	:
+
+# Switch to group window 5 (Deferred: window groups)
+super + alt + 5
+	:
+
+# Monitor scaling up (Deferred: per-monitor scaling)
+super + slash
+	:
+
+# Monitor scaling down (Deferred: per-monitor scaling)
+super + alt + slash
+	:
+
+# Toggle transparency on a window (Deferred: per-window transparency (window props))
+super + BackSpace
+	:
+
+# Toggle single-window square aspect (Deferred: single-window square aspect)
+super + ctrl + BackSpace
+	:
+
 # Not bound on X11 (no ready equivalent, or handled elsewhere):
 #   CTRL + SPACE                       Direct input for the terminal prefix     Lua function with no X11 equivalent yet
 #   SUPER + CTRL + F                   Tiled full screen                        Deferred: tiled fullscreen
