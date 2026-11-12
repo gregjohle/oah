@@ -75,9 +75,12 @@ for m in $(bspc query -M --names); do
   wait_for_screensaver_window "$count"
 done
 
-# OAH(x11): a one-shot rule whose window never came would catch the next
-# screensaver; drop any left over.
-bspc rule -r org.omarchy.screensaver 2>/dev/null
+# OAH(x11): a one-shot rule whose window never came would send the next
+# screensaver to its monitor; drop those (listed with "->"), last first so the
+# indexes hold. The permanent fullscreen rule from bspwmrc ("=>") stays, so a
+# terminal slower than the wait above still opens fullscreen.
+bspc rule -l | grep -n '^org\.omarchy\.screensaver:.* -> ' | cut -d: -f1 | sort -rn |
+  while read -r index; do bspc rule -r "^$index"; done
 
 bspc monitor -f "$focused" # OAH(x11): was hypr_focus_monitor
 
