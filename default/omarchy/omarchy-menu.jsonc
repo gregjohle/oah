@@ -98,8 +98,10 @@
   "appearance.windows.transparency.opaque": {"icon":"󰝤","label":"Opaque Windows","checked":"[[ $(omarchy-hyprland-window-transparency) == \"opaque\" ]]","action":"omarchy-hyprland-window-transparency opaque"},
   "appearance.windows.transparency.transparent": {"icon":"󰝣","label":"Transparent Windows","checked":"[[ $(omarchy-hyprland-window-transparency) == \"transparent\" ]]","action":"omarchy-hyprland-window-transparency transparent"},
   "appearance.windows.transparency.glassy": {"icon":"󰂵","label":"Glassy Windows","checked":"[[ $(omarchy-hyprland-window-transparency) == \"glassy\" ]]","action":"omarchy-hyprland-window-transparency glassy"},
-  "appearance.windows.one-window-ratio-on": {"icon":"","label":"1-Window Ratio On","when":"! omarchy-hyprland-toggle-enabled single-window-aspect-ratio","action":"omarchy-hyprland-window-single-square-aspect-toggle"},
-  "appearance.windows.one-window-ratio-off": {"icon":"","label":"1-Window Ratio Off","when":"omarchy-hyprland-toggle-enabled single-window-aspect-ratio","action":"omarchy-hyprland-window-single-square-aspect-toggle"},
+  // OAH(x11): hidden ("when":"false"): single-window square aspect (board: Deferred).
+  "appearance.windows.one-window-ratio-on": {"icon":"","label":"1-Window Ratio On","when":"false","action":"omarchy-hyprland-window-single-square-aspect-toggle"},
+  // OAH(x11): hidden ("when":"false"): single-window square aspect (board: Deferred).
+  "appearance.windows.one-window-ratio-off": {"icon":"","label":"1-Window Ratio Off","when":"false","action":"omarchy-hyprland-window-single-square-aspect-toggle"},
   "appearance.branding": {"icon":"","iconFont":"omarchy","label":"Branding"},
   "appearance.branding.screensaver": {"icon":"󱄄","label":"Screensaver"},
   "appearance.branding.about": {"icon":"","label":"About"},
@@ -117,7 +119,8 @@
   "appearance.dock.position.bottom": {"icon":"󰁅","label":"Bottom Dock","checked":"[[ $(omarchy-dock position) == \"bottom\" ]]","action":"omarchy-dock position bottom"},
   "appearance.dock.position.left": {"icon":"󰁍","label":"Left Dock","checked":"[[ $(omarchy-dock position) == \"left\" ]]","action":"omarchy-dock position left"},
   "appearance.dock.position.right": {"icon":"󰁔","label":"Right Dock","checked":"[[ $(omarchy-dock position) == \"right\" ]]","action":"omarchy-dock position right"},
-  "appearance.workspace-layout": {"icon":"󱂬","label":"Workspace Layout","title":"Default Workspace Layout"},
+  // OAH(x11): hidden ("when":"false"): scrolling and floating layouts aren't on X11 yet, so Tiling would be the only choice (board: Deferred).
+  "appearance.workspace-layout": {"icon":"󱂬","label":"Workspace Layout","when":"false","title":"Default Workspace Layout"},
   "appearance.workspace-layout.dwindle": {"icon":"󱓻","label":"Tiling","checked":"[[ $(omarchy-hyprland-workspace-layout-default) == \"dwindle\" ]]","action":"omarchy-hyprland-workspace-layout-default dwindle"},
   "appearance.workspace-layout.scrolling": {"icon":"󰝥","label":"Scrolling","checked":"[[ $(omarchy-hyprland-workspace-layout-default) == \"scrolling\" ]]","action":"omarchy-hyprland-workspace-layout-default scrolling"},
   "appearance.workspace-layout.floating": {"icon":"󰔶","label":"Floating","checked":"[[ $(omarchy-hyprland-workspace-layout-default) == \"floating\" ]]","action":"omarchy-hyprland-workspace-layout-default floating"},

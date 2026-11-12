@@ -178,774 +178,807 @@ super + t
 super + f
 	oah-bind 44
 
-# Tiled full screen
-super + ctrl + f
-	oah-bind 45
-
-# Full width
-super + alt + f
-	oah-bind 46
-
 # Pop window out (float & pin)
 super + o
-	oah-bind 47
-
-# Save window width
-super + alt + Home
-	oah-bind 48
-
-# Restore window width
-super + Home
-	oah-bind 49
-
-# Cycle workspace layout
-super + l
-	oah-bind 50
-
-# Cycle workspace layout back
-super + alt + l
-	oah-bind 51
+	oah-bind 45
 
 # Focus on left window
 super + Left
-	oah-bind 52
+	oah-bind 46
 
 # Focus on right window
 super + Right
-	oah-bind 53
+	oah-bind 47
 
 # Focus on above window
 super + Up
-	oah-bind 54
+	oah-bind 48
 
 # Focus on below window
 super + Down
-	oah-bind 55
+	oah-bind 49
 
 # Switch to workspace 1
 super + 1
-	oah-bind 56
+	oah-bind 50
 
 # Move window to workspace 1
 super + shift + 1
-	oah-bind 57
+	oah-bind 51
 
 # Move window silently to workspace 1
 super + shift + alt + 1
-	oah-bind 58
+	oah-bind 52
 
 # Switch to workspace 2
 super + 2
-	oah-bind 59
+	oah-bind 53
 
 # Move window to workspace 2
 super + shift + 2
-	oah-bind 60
+	oah-bind 54
 
 # Move window silently to workspace 2
 super + shift + alt + 2
-	oah-bind 61
+	oah-bind 55
 
 # Switch to workspace 3
 super + 3
-	oah-bind 62
+	oah-bind 56
 
 # Move window to workspace 3
 super + shift + 3
-	oah-bind 63
+	oah-bind 57
 
 # Move window silently to workspace 3
 super + shift + alt + 3
-	oah-bind 64
+	oah-bind 58
 
 # Switch to workspace 4
 super + 4
-	oah-bind 65
+	oah-bind 59
 
 # Move window to workspace 4
 super + shift + 4
-	oah-bind 66
+	oah-bind 60
 
 # Move window silently to workspace 4
 super + shift + alt + 4
-	oah-bind 67
+	oah-bind 61
 
 # Switch to workspace 5
 super + 5
-	oah-bind 68
+	oah-bind 62
 
 # Move window to workspace 5
 super + shift + 5
-	oah-bind 69
+	oah-bind 63
 
 # Move window silently to workspace 5
 super + shift + alt + 5
-	oah-bind 70
+	oah-bind 64
 
 # Switch to workspace 6
 super + 6
-	oah-bind 71
+	oah-bind 65
 
 # Move window to workspace 6
 super + shift + 6
-	oah-bind 72
+	oah-bind 66
 
 # Move window silently to workspace 6
 super + shift + alt + 6
-	oah-bind 73
+	oah-bind 67
 
 # Switch to workspace 7
 super + 7
-	oah-bind 74
+	oah-bind 68
 
 # Move window to workspace 7
 super + shift + 7
-	oah-bind 75
+	oah-bind 69
 
 # Move window silently to workspace 7
 super + shift + alt + 7
-	oah-bind 76
+	oah-bind 70
 
 # Switch to workspace 8
 super + 8
-	oah-bind 77
+	oah-bind 71
 
 # Move window to workspace 8
 super + shift + 8
-	oah-bind 78
+	oah-bind 72
 
 # Move window silently to workspace 8
 super + shift + alt + 8
-	oah-bind 79
+	oah-bind 73
 
 # Switch to workspace 9
 super + 9
-	oah-bind 80
+	oah-bind 74
 
 # Move window to workspace 9
 super + shift + 9
-	oah-bind 81
+	oah-bind 75
 
 # Move window silently to workspace 9
 super + shift + alt + 9
-	oah-bind 82
+	oah-bind 76
 
 # Switch to workspace 10
 super + 0
-	oah-bind 83
+	oah-bind 77
 
 # Move window to workspace 10
 super + shift + 0
-	oah-bind 84
+	oah-bind 78
 
 # Move window silently to workspace 10
 super + shift + alt + 0
-	oah-bind 85
-
-# Toggle scratchpad
-super + s
-	oah-bind 86
-
-# Move window to scratchpad
-super + alt + s
-	oah-bind 87
-
-# Toggle Quake console
-super + grave
-	oah-bind 88
-
-# Minimize window to the dock
-super + m
-	oah-bind 89
-
-# Move window to Quake console
-super + shift + grave
-	oah-bind 90
+	oah-bind 79
 
 # Next workspace
 super + Tab
-	oah-bind 91
+	oah-bind 80
 
 # Previous workspace
 super + shift + Tab
-	oah-bind 92
+	oah-bind 81
 
 # Former workspace
 super + ctrl + Tab
-	oah-bind 93
+	oah-bind 82
 
 # Move workspace to left monitor
 super + shift + alt + Left
-	oah-bind 94
+	oah-bind 83
 
 # Move workspace to right monitor
 super + shift + alt + Right
-	oah-bind 95
+	oah-bind 84
 
 # Move workspace to up monitor
 super + shift + alt + Up
-	oah-bind 96
+	oah-bind 85
 
 # Move workspace to down monitor
 super + shift + alt + Down
-	oah-bind 97
+	oah-bind 86
 
 # Move window to left monitor
 super + shift + ctrl + Left
-	oah-bind 98
+	oah-bind 87
 
 # Move window to right monitor
 super + shift + ctrl + Right
-	oah-bind 99
+	oah-bind 88
 
 # Move window to up monitor
 super + shift + ctrl + Up
-	oah-bind 100
+	oah-bind 89
 
 # Move window to down monitor
 super + shift + ctrl + Down
-	oah-bind 101
+	oah-bind 90
 
 # Swap window to the left
 super + shift + Left
-	oah-bind 102
+	oah-bind 91
 
 # Swap window to the right
 super + shift + Right
-	oah-bind 103
+	oah-bind 92
 
 # Swap window up
 super + shift + Up
-	oah-bind 104
+	oah-bind 93
 
 # Swap window down
 super + shift + Down
-	oah-bind 105
+	oah-bind 94
 
 # Reveal active window on top; Focus on previous window
 alt + shift + Tab
-	oah-bind 106 108
+	oah-bind 95 97
 
 # Focus on next window; Reveal active window on top
 alt + Tab
-	oah-bind 107 109
+	oah-bind 96 98
 
 # Focus on next monitor
 ctrl + alt + Tab
-	oah-bind 110
+	oah-bind 99
 
 # Focus on previous monitor
 ctrl + alt + shift + Tab
-	oah-bind 111
+	oah-bind 100
 
 # Expand window left
 super + minus
-	oah-bind 112
+	oah-bind 101
 
 # Shrink window left
 super + equal
-	oah-bind 113
+	oah-bind 102
 
 # Shrink window up
 super + shift + minus
-	oah-bind 114
+	oah-bind 103
 
 # Expand window down
 super + shift + equal
-	oah-bind 115
+	oah-bind 104
 
 # Expand window left a little
 super + alt + minus
-	oah-bind 116
+	oah-bind 105
 
 # Shrink window left a little
 super + alt + equal
-	oah-bind 117
+	oah-bind 106
 
 # Shrink window up a little
 super + shift + alt + minus
-	oah-bind 118
+	oah-bind 107
 
 # Expand window down a little
 super + shift + alt + equal
-	oah-bind 119
+	oah-bind 108
 
 # Expand window left a lot
 super + ctrl + minus
-	oah-bind 120
+	oah-bind 109
 
 # Shrink window left a lot
 super + ctrl + equal
-	oah-bind 121
+	oah-bind 110
 
 # Shrink window up a lot
 super + ctrl + shift + minus
-	oah-bind 122
+	oah-bind 111
 
 # Expand window down a lot
 super + ctrl + shift + equal
-	oah-bind 123
+	oah-bind 112
 
 # Scroll active workspace forward
 super + button5
-	oah-bind 124
+	oah-bind 113
 
 # Scroll active workspace backward
 super + button4
-	oah-bind 125
-
-# Toggle window grouping
-super + g
-	oah-bind 126
-
-# Move active window out of group
-super + alt + g
-	oah-bind 127
-
-# Move window to group on left
-super + alt + Left
-	oah-bind 128
-
-# Move window to group on right
-super + alt + Right
-	oah-bind 129
-
-# Move window to group on top
-super + alt + Up
-	oah-bind 130
-
-# Move window to group on bottom
-super + alt + Down
-	oah-bind 131
-
-# Next window in group
-super + alt + Tab
-	oah-bind 132
-
-# Previous window in group
-super + alt + shift + Tab
-	oah-bind 133
-
-# Move grouped window focus left
-super + ctrl + Left
-	oah-bind 134
-
-# Move grouped window focus right
-super + ctrl + Right
-	oah-bind 135
-
-# Next window in group
-super + alt + button5
-	oah-bind 136
-
-# Previous window in group
-super + alt + button4
-	oah-bind 137
-
-# Switch to group window 1
-super + alt + 1
-	oah-bind 138
-
-# Switch to group window 2
-super + alt + 2
-	oah-bind 139
-
-# Switch to group window 3
-super + alt + 3
-	oah-bind 140
-
-# Switch to group window 4
-super + alt + 4
-	oah-bind 141
-
-# Switch to group window 5
-super + alt + 5
-	oah-bind 142
-
-# Monitor scaling up
-super + slash
-	oah-bind 143
-
-# Monitor scaling down
-super + alt + slash
-	oah-bind 144
+	oah-bind 114
 
 # Omarchy menu
 super + space
-	oah-bind 145
+	oah-bind 115
 
 # Apps
 super + alt + space
-	oah-bind 146
+	oah-bind 116
 
 # Emojis
 super + ctrl + e
-	oah-bind 147
+	oah-bind 117
 
 # Capture menu
 super + ctrl + c
-	oah-bind 148
+	oah-bind 118
 
 # Toggle menu
 super + ctrl + o
-	oah-bind 149
+	oah-bind 119
 
 # Hardware menu
 super + ctrl + h
-	oah-bind 150
+	oah-bind 120
 
 # Omarchy menu
 super + shift + XF86TouchpadOff
-	oah-bind 151
+	oah-bind 121
 
 # System menu
 super + Escape
-	oah-bind 152
+	oah-bind 122
 
 # Power menu
 XF86PowerOff
-	oah-bind 153
+	oah-bind 123
 
 # Keybindings
 super + k
-	oah-bind 154
+	oah-bind 124
 
 # Tmux keybindings
 super + alt + k
-	oah-bind 155
+	oah-bind 125
 
 # Herdr keybindings
 super + ctrl + k
-	oah-bind 156
+	oah-bind 126
 
 # Toggle top bar
 super + shift + space
-	oah-bind 157
+	oah-bind 127
 
 # Background switcher
 super + ctrl + space
-	oah-bind 158
+	oah-bind 128
 
 # Background switcher
 super + ctrl + w
-	oah-bind 159
+	oah-bind 129
 
 # Theme menu
 super + shift + ctrl + space
-	oah-bind 160
+	oah-bind 130
 
 # Theme menu
 super + ctrl + t
-	oah-bind 161
-
-# Toggle transparency on a window
-super + BackSpace
-	oah-bind 162
+	oah-bind 131
 
 # Toggle window gaps
 super + shift + BackSpace
-	oah-bind 163
-
-# Toggle single-window square aspect
-super + ctrl + BackSpace
-	oah-bind 164
+	oah-bind 132
 
 # Toggle full screen desktop
 super + ctrl + alt + f
-	oah-bind 165
+	oah-bind 133
 
 # Dismiss, invoke, or focus last notification
 super + comma
-	oah-bind 166
+	oah-bind 134
 
 # Dismiss all notifications
 super + shift + comma
-	oah-bind 167
+	oah-bind 135
 
 # Control notifications with the keyboard
 super + ctrl + comma
-	oah-bind 168
+	oah-bind 136
 
 # Dismiss last notification
 super + alt + comma
-	oah-bind 169
+	oah-bind 137
 
 # Open notification history
 super + shift + alt + comma
-	oah-bind 170
+	oah-bind 138
 
 # Toggle silencing notifications
 super + ctrl + alt + comma
-	oah-bind 171
+	oah-bind 139
 
 # Toggle locking on idle
 super + ctrl + i
-	oah-bind 172
+	oah-bind 140
 
 # Toggle laptop display
 super + ctrl + Delete
-	oah-bind 173
+	oah-bind 141
 
 # Toggle laptop display mirroring
 super + ctrl + alt + Delete
-	oah-bind 174
+	oah-bind 142
 
 # Screenshot
 Print
-	oah-bind 175
+	oah-bind 143
 
 # Screenshot
 super + ctrl + alt + c
-	oah-bind 176
+	oah-bind 144
 
 # Screenrecording
 alt + Print
-	oah-bind 177
+	oah-bind 145
 
 # Make webcam overlay smaller
 super + alt + bracketleft
-	oah-bind 178
+	oah-bind 146
 
 # Make webcam overlay larger
 super + alt + bracketright
-	oah-bind 179
+	oah-bind 147
 
 # Color picker
 super + Print
-	oah-bind 180
+	oah-bind 148
 
 # Extract text (OCR) from screenshot
 super + ctrl + Print
-	oah-bind 181
+	oah-bind 149
 
 # Share
 super + ctrl + s
-	oah-bind 182
+	oah-bind 150
 
 # Transcode
 super + ctrl + period
-	oah-bind 183
+	oah-bind 151
 
 # Set reminder
 super + ctrl + r
-	oah-bind 184
+	oah-bind 152
 
 # Show reminders
 super + ctrl + alt + r
-	oah-bind 185
+	oah-bind 153
 
 # Clear reminders
 super + shift + ctrl + r
-	oah-bind 186
+	oah-bind 154
 
 # Show time
 super + ctrl + alt + t
-	oah-bind 187
+	oah-bind 155
 
 # Show battery remaining
 super + ctrl + alt + b
-	oah-bind 188
+	oah-bind 156
 
 # Toggle weather
 super + ctrl + alt + w
-	oah-bind 189
+	oah-bind 157
 
 # Agent
 super + shift + ctrl + a
-	oah-bind 190
+	oah-bind 158
 
 # Audio
 super + ctrl + a
-	oah-bind 191
+	oah-bind 159
 
 # Bluetooth
 super + ctrl + b
-	oah-bind 192
+	oah-bind 160
 
 # Display
 super + ctrl + d
-	oah-bind 193
+	oah-bind 161
 
 # Calendar
 super + ctrl + alt + d
-	oah-bind 194
+	oah-bind 162
 
 # World clock
 super + ctrl + alt + e
-	oah-bind 195
+	oah-bind 163
 
 # Network
 super + ctrl + n
-	oah-bind 196
+	oah-bind 164
 
 # Power
 super + ctrl + p
-	oah-bind 197
+	oah-bind 165
 
 # Activity
 super + shift + t
-	oah-bind 198
+	oah-bind 166
 
 # Bar panel 1
 super + ctrl + 1
-	oah-bind 199
+	oah-bind 167
 
 # Bar panel 2
 super + ctrl + 2
-	oah-bind 200
+	oah-bind 168
 
 # Bar panel 3
 super + ctrl + 3
-	oah-bind 201
+	oah-bind 169
 
 # Bar panel 4
 super + ctrl + 4
-	oah-bind 202
+	oah-bind 170
 
 # Bar panel 5
 super + ctrl + 5
-	oah-bind 203
+	oah-bind 171
 
 # Bar panel 6
 super + ctrl + 6
-	oah-bind 204
+	oah-bind 172
 
 # Bar panel 7
 super + ctrl + 7
-	oah-bind 205
+	oah-bind 173
 
 # Bar panel 8
 super + ctrl + 8
-	oah-bind 206
+	oah-bind 174
 
 # Bar panel 9
 super + ctrl + 9
-	oah-bind 207
+	oah-bind 175
 
 # Lock system
 super + ctrl + l
-	oah-bind 208
+	oah-bind 176
 
 # Terminal
 super + Return
-	oah-bind 209
+	oah-bind 177
 
 # Browser
 super + shift + Return
-	oah-bind 210
+	oah-bind 178
 
 # File manager
 super + shift + f
-	oah-bind 211
+	oah-bind 179
 
 # File manager (cwd)
 super + alt + shift + f
-	oah-bind 212
+	oah-bind 180
 
 # Browser
 super + shift + b
-	oah-bind 213
+	oah-bind 181
 
 # Browser (private)
 super + shift + alt + b
-	oah-bind 214
+	oah-bind 182
 
 # Editor
 super + shift + n
-	oah-bind 215
+	oah-bind 183
 
 # Tmux
 super + alt + Return
-	oah-bind 216
+	oah-bind 184
 
 # Herdr
 super + ctrl + Return
-	oah-bind 217
+	oah-bind 185
 
 # Calculator
 super + shift + q
-	oah-bind 218
+	oah-bind 186
 
 # Calculator
 XF86Calculator
-	oah-bind 219
+	oah-bind 187
 
 # Music
 super + shift + m
-	oah-bind 220
+	oah-bind 188
 
 # Music TUI
 super + shift + alt + m
-	oah-bind 221
+	oah-bind 189
 
 # Signal
 super + shift + g
-	oah-bind 222
+	oah-bind 190
 
 # Obsidian
 super + shift + o
-	oah-bind 223
+	oah-bind 191
 
 # Omawrite
 super + shift + w
-	oah-bind 224
+	oah-bind 192
 
 # Passwords
 super + shift + slash
-	oah-bind 225
+	oah-bind 193
 
 # ChatGPT
 super + shift + a
-	oah-bind 226
+	oah-bind 194
 
 # Grok
 super + shift + alt + a
-	oah-bind 227
+	oah-bind 195
 
 # Calendar
 super + shift + c
-	oah-bind 228
+	oah-bind 196
 
 # Email
 super + shift + e
-	oah-bind 229
+	oah-bind 197
 
 # New email
 super + shift + alt + e
-	oah-bind 230
+	oah-bind 198
 
 # YouTube
 super + shift + y
-	oah-bind 231
+	oah-bind 199
 
 # WhatsApp
 super + shift + alt + g
-	oah-bind 232
+	oah-bind 200
 
 # Google Messages
 super + shift + ctrl + g
-	oah-bind 233
+	oah-bind 201
 
 # Google Photos
 super + shift + p
-	oah-bind 234
+	oah-bind 202
 
 # Google Maps
 super + shift + s
-	oah-bind 235
+	oah-bind 203
 
 # X
 super + shift + x
-	oah-bind 236
+	oah-bind 204
 
 # X Post
 super + shift + alt + x
-	oah-bind 237
+	oah-bind 205
+
+# Deferred features (board): grabbed and doing nothing, so the key doesn't reach the focused app.
+# Tiled full screen (Deferred: tiled fullscreen)
+super + ctrl + f
+	:
+
+# Full width (Deferred: full width (in-layout maximize))
+super + alt + f
+	:
+
+# Save window width (Deferred: scrolling layout (window width))
+super + alt + Home
+	:
+
+# Restore window width (Deferred: scrolling layout (window width))
+super + Home
+	:
+
+# Cycle workspace layout (Deferred: scrolling/floating workspace layouts)
+super + l
+	:
+
+# Cycle workspace layout back (Deferred: scrolling/floating workspace layouts)
+super + alt + l
+	:
+
+# Toggle scratchpad (Deferred: special workspaces (scratchpad, Quake console))
+super + s
+	:
+
+# Move window to scratchpad (Deferred: special workspaces (scratchpad, Quake console))
+super + alt + s
+	:
+
+# Toggle Quake console (Deferred: special workspaces (scratchpad, Quake console))
+super + grave
+	:
+
+# Minimize window to the dock (Deferred: minimize)
+super + m
+	:
+
+# Move window to Quake console (Deferred: special workspaces (scratchpad, Quake console))
+super + shift + grave
+	:
+
+# Toggle window grouping (Deferred: window groups)
+super + g
+	:
+
+# Move active window out of group (Deferred: window groups)
+super + alt + g
+	:
+
+# Move window to group on left (Deferred: window groups)
+super + alt + Left
+	:
+
+# Move window to group on right (Deferred: window groups)
+super + alt + Right
+	:
+
+# Move window to group on top (Deferred: window groups)
+super + alt + Up
+	:
+
+# Move window to group on bottom (Deferred: window groups)
+super + alt + Down
+	:
+
+# Next window in group (Deferred: window groups)
+super + alt + Tab
+	:
+
+# Previous window in group (Deferred: window groups)
+super + alt + shift + Tab
+	:
+
+# Move grouped window focus left (Deferred: window groups)
+super + ctrl + Left
+	:
+
+# Move grouped window focus right (Deferred: window groups)
+super + ctrl + Right
+	:
+
+# Next window in group (Deferred: window groups)
+super + alt + button5
+	:
+
+# Previous window in group (Deferred: window groups)
+super + alt + button4
+	:
+
+# Switch to group window 1 (Deferred: window groups)
+super + alt + 1
+	:
+
+# Switch to group window 2 (Deferred: window groups)
+super + alt + 2
+	:
+
+# Switch to group window 3 (Deferred: window groups)
+super + alt + 3
+	:
+
+# Switch to group window 4 (Deferred: window groups)
+super + alt + 4
+	:
+
+# Switch to group window 5 (Deferred: window groups)
+super + alt + 5
+	:
+
+# Monitor scaling up (Deferred: per-monitor scaling)
+super + slash
+	:
+
+# Monitor scaling down (Deferred: per-monitor scaling)
+super + alt + slash
+	:
+
+# Toggle transparency on a window (Deferred: per-window transparency (window props))
+super + BackSpace
+	:
+
+# Toggle single-window square aspect (Deferred: single-window square aspect)
+super + ctrl + BackSpace
+	:
 
 # Not bound on X11 (no ready equivalent, or handled elsewhere):
 #   CTRL + SPACE                       Direct input for the terminal prefix     Lua function with no X11 equivalent yet
+#   SUPER + CTRL + F                   Tiled full screen                        Deferred: tiled fullscreen
+#   SUPER + ALT + F                    Full width                               Deferred: full width (in-layout maximize)
+#   SUPER + ALT + Home                 Save window width                        Deferred: scrolling layout (window width)
+#   SUPER + Home                       Restore window width                     Deferred: scrolling layout (window width)
+#   SUPER + L                          Cycle workspace layout                   Deferred: scrolling/floating workspace layouts
+#   SUPER + ALT + L                    Cycle workspace layout back              Deferred: scrolling/floating workspace layouts
+#   SUPER + S                          Toggle scratchpad                        Deferred: special workspaces (scratchpad, Quake console)
+#   SUPER + ALT + S                    Move window to scratchpad                Deferred: special workspaces (scratchpad, Quake console)
+#   SUPER + grave                      Toggle Quake console                     Deferred: special workspaces (scratchpad, Quake console)
+#   SUPER + M                          Minimize window to the dock              Deferred: minimize
+#   SUPER + SHIFT + grave              Move window to Quake console             Deferred: special workspaces (scratchpad, Quake console)
 #   SUPER + mouse:272                  Move window                              mouse drag: bspwmrc sets bspwm pointer_action1/3 (move/resize) on SUPER
 #   SUPER + mouse:273                  Resize window                            mouse drag: bspwmrc sets bspwm pointer_action1/3 (move/resize) on SUPER
+#   SUPER + G                          Toggle window grouping                   Deferred: window groups
+#   SUPER + ALT + G                    Move active window out of group          Deferred: window groups
+#   SUPER + ALT + LEFT                 Move window to group on left             Deferred: window groups
+#   SUPER + ALT + RIGHT                Move window to group on right            Deferred: window groups
+#   SUPER + ALT + UP                   Move window to group on top              Deferred: window groups
+#   SUPER + ALT + DOWN                 Move window to group on bottom           Deferred: window groups
+#   SUPER + ALT + TAB                  Next window in group                     Deferred: window groups
+#   SUPER + ALT + SHIFT + TAB          Previous window in group                 Deferred: window groups
+#   SUPER + CTRL + LEFT                Move grouped window focus left           Deferred: window groups
+#   SUPER + CTRL + RIGHT               Move grouped window focus right          Deferred: window groups
+#   SUPER + ALT + mouse_down           Next window in group                     Deferred: window groups
+#   SUPER + ALT + mouse_up             Previous window in group                 Deferred: window groups
+#   SUPER + ALT + code:10              Switch to group window 1                 Deferred: window groups
+#   SUPER + ALT + code:11              Switch to group window 2                 Deferred: window groups
+#   SUPER + ALT + code:12              Switch to group window 3                 Deferred: window groups
+#   SUPER + ALT + code:13              Switch to group window 4                 Deferred: window groups
+#   SUPER + ALT + code:14              Switch to group window 5                 Deferred: window groups
+#   SUPER + SLASH                      Monitor scaling up                       Deferred: per-monitor scaling
+#   SUPER + ALT + SLASH                Monitor scaling down                     Deferred: per-monitor scaling
+#   SUPER + BACKSPACE                  Toggle transparency on a window          Deferred: per-window transparency (window props)
+#   SUPER + CTRL + BACKSPACE           Toggle single-window square aspect       Deferred: single-window square aspect
 #   switch:on:Lid Switch               -                                        lid/switch event (handled by the lid port, not a key)
 #   switch:off:Lid Switch              -                                        lid/switch event (handled by the lid port, not a key)
 #   switch:on:Apple SMC power/lid events -                                        lid/switch event (handled by the lid port, not a key)

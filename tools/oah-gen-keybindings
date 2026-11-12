@@ -18,7 +18,12 @@ Translation:
   shell global shortcuts      the command upstream falls back to without them
   universal clipboard keys    oah-universal-clipboard (xdotool)
 Bindings with no ready X11 equivalent are listed at the end of sxhkdrc and
-left unbound (see the Deferred list on the project board).
+left unbound (see the Deferred list on the project board). Bindings whose
+action belongs to a Deferred feature (DEFERRED below) are grabbed and do
+nothing: unbound, the key would reach the focused app (Super+S typing "s",
+Super+Backspace deleting a character), and calling the Hyprland-only action
+could claim a change that never happened. They stay out of bindings.tsv, so
+`hyprctl binds` (the keybindings menu) doesn't offer them.
 
 Re-run on every upstream release.
 
@@ -166,6 +171,29 @@ FUNCTIONS = {
 }
 
 
+# Actions that belong to features on the board's Deferred list (no ready X11
+# equivalent yet). Matched as substrings of the binding's action.
+DEFERRED = [
+    ("omarchy-hyprland-window-tiled-fullscreen-toggle", "tiled fullscreen"),
+    ('fullscreen({ mode = "maximized" })', "full width (in-layout maximize)"),
+    ("omarchy-hyprland-window-width", "scrolling layout (window width)"),
+    ("omarchy-hyprland-workspace-layout-toggle", "scrolling/floating workspace layouts"),
+    ("toggle_special(", "special workspaces (scratchpad, Quake console)"),
+    ('workspace = "special:', "special workspaces (scratchpad, Quake console)"),
+    ("omarchy-hyprland-window-minimize", "minimize"),
+    ("hl.dsp.group.", "window groups"),
+    ("into_group", "window groups"),
+    ("out_of_group", "window groups"),
+    ("omarchy-hyprland-monitor-scaling", "per-monitor scaling"),
+    ("omarchy-hyprland-window-transparency-toggle", "per-window transparency (window props)"),
+    ("omarchy-hyprland-window-single-square-aspect-toggle", "single-window square aspect"),
+]
+
+
+def deferred(action):
+    return next((f"Deferred: {feature}" for needle, feature in DEFERRED if needle in action), None)
+
+
 def translate(kind, action, description):
     if kind == "cmd":
         return ("cmd", action), None
@@ -209,7 +237,7 @@ def main():
     os.makedirs(out_dir, exist_ok=True)
     table = os.path.join(out_dir, "bindings.tsv")
 
-    rows, skipped, chords = [], [], {}
+    rows, skipped, chords, grabbed = [], [], {}, {}
     for line in raw.splitlines():
         keys, description, kind, action, flags = (line.split("\t") + [""] * 5)[:5]
         flags = flags.split(",")
@@ -222,6 +250,9 @@ def main():
             skipped.append((keys, description, why))
             continue
         t, why = translate(kind, action, description)
+        if t is not None and deferred(t[1]):
+            t, why = None, deferred(t[1])
+            grabbed.setdefault(c, []).append((description, why))
         if t is None:
             skipped.append((keys, description, why))
             continue
@@ -248,13 +279,22 @@ def main():
         # machine path ends up in the repo; per-user files name theirs.
         target = f"-t {quote(table)} " if user else ""
         out.append(f"# {descs}\n{c}\n\toah-bind {target}{' '.join(map(str, ns))}\n\n")
+    # Deferred features: keep the key grabbed so it doesn't reach the app.
+    out.append("# Deferred features (board): grabbed and doing nothing, so the key doesn't reach the focused app.\n")
+    for c, entries in grabbed.items():
+        if c in chords:
+            continue  # a real binding owns this chord
+        descs = "; ".join(dict.fromkeys(f"{d} ({w})" for d, w in entries))
+        out.append(f"# {descs}\n{c}\n\t:\n\n")
     out.append("# Not bound on X11 (no ready equivalent, or handled elsewhere):\n")
     for keys, description, why in skipped:
         out.append(f"#   {keys:<34} {description or '-':<40} {why}\n")
 
     write_atomic(os.path.join(out_dir, "sxhkdrc"), "".join(out))
 
-    print(f"oah-gen-keybindings: {len(rows)} bindings on {len(chords)} chords, {len(skipped)} not bound (Omarchy {pin}) -> {out_dir}")
+    held = len([c for c in grabbed if c not in chords])
+    print(f"oah-gen-keybindings: {len(rows)} bindings on {len(chords)} chords, {held} Deferred keys held as no-ops, "
+          f"{len(skipped) - sum(len(v) for c, v in grabbed.items() if c not in chords)} not bound (Omarchy {pin}) -> {out_dir}")
 
 
 if __name__ == "__main__":
