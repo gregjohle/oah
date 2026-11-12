@@ -1515,6 +1515,7 @@ Item {
 
       // OAH(x11): was WlrLayershell.namespace: "omarchy-notifications"
       aboveWindows: true // OAH(x11): was WlrLayershell.layer: WlrLayer.Overlay
+      Item { readonly property string oahLayerTag: "oah-layer-overlay"; function oahApplyLayerTag() { if (Window.window) Window.window.title = oahLayerTag } onOahLayerTagChanged: oahApplyLayerTag(); Window.onWindowChanged: oahApplyLayerTag(); Component.onCompleted: oahApplyLayerTag() } // OAH(x11): names this window after its Wayland layer for oah-x11-stacking
       readonly property bool takesKeyboard: service.keyboardMode && service.targetDisplayName === String(modelData.name)
       focusable: (takesKeyboard ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None) != WlrKeyboardFocus.None // OAH(x11): was WlrLayershell.keyboardFocus: takesKeyboard ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
       exclusionMode: ExclusionMode.Ignore

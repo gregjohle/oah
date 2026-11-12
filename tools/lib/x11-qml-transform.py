@@ -11,6 +11,8 @@ then refuses to create the whole window ("Component is not ready"). The X11
 PanelWindow has its own equivalents:
 
   WlrLayershell.layer: X          -> aboveWindows   (Top/Overlay above, Background/Bottom below)
+                                     + a layer tag  (window title "oah-layer-top"/"oah-layer-overlay",
+                                       so oah-x11-stacking can put Top under fullscreen windows)
   WlrLayershell.keyboardFocus: X  -> focusable      (anything but None takes focus)
   WlrLayershell.namespace: X      -> dropped        (no X11 equivalent)
   Hyprland.<api>                  -> Compositor.<api> (shell/Oah/Compositor.qml, bspwm-backed)
@@ -172,6 +174,49 @@ def transform(text: str) -> tuple[str, int]:
             out.append(f"{m['indent']}{new} {MARK}{original}{newline}")
         changed += 1
         i = j
+    text, tagged = transform_layer_tags("".join(out))
+    return text, changed + tagged
+
+
+# X11 has no layers: aboveWindows can't tell Wayland's Top layer (bar, dock),
+# which fullscreen windows cover, from Overlay (popups, OSD, notifications),
+# which stays above them. A zero-size child item names its window after the
+# layer through Qt's Window attached property; oah-x11-stacking reads it.
+LAYER_LINE = re.compile(r"^(?P<indent>\s*)aboveWindows: .* // OAH\(x11\): was WlrLayershell\.layer: (?P<expr>.+?)\s*$")
+LAYER_TAG_MARK = "oahLayerTag"
+
+
+def layer_tag_value(expr: str) -> str | None:
+    if expr == "WlrLayer.Top":
+        return '"oah-layer-top"'
+    if expr == "WlrLayer.Overlay":
+        return '"oah-layer-overlay"'
+    if expr in ("WlrLayer.Bottom", "WlrLayer.Background"):
+        return None
+    return f'({expr}) === WlrLayer.Top ? "oah-layer-top" : "oah-layer-overlay"'
+
+
+def transform_layer_tags(text: str) -> tuple[str, int]:
+    lines = text.splitlines(keepends=True)
+    out, changed = [], 0
+    for i, line in enumerate(lines):
+        out.append(line)
+        m = LAYER_LINE.match(line.rstrip("\n"))
+        if not m:
+            continue
+        value = layer_tag_value(m["expr"])
+        following = lines[i + 1] if i + 1 < len(lines) else ""
+        if value is None or LAYER_TAG_MARK in following:
+            continue
+        newline = "\n" if line.endswith("\n") else ""
+        out.append(
+            f"{m['indent']}Item {{ readonly property string {LAYER_TAG_MARK}: {value}; "
+            f"function oahApplyLayerTag() {{ if (Window.window) Window.window.title = {LAYER_TAG_MARK} }} "
+            f"on{LAYER_TAG_MARK[0].upper()}{LAYER_TAG_MARK[1:]}Changed: oahApplyLayerTag(); "
+            f"Window.onWindowChanged: oahApplyLayerTag(); Component.onCompleted: oahApplyLayerTag() }} "
+            f"// OAH(x11): names this window after its Wayland layer for oah-x11-stacking{newline}"
+        )
+        changed += 1
     return "".join(out), changed
 
 
