@@ -18,7 +18,9 @@ Translation:
   shell global shortcuts      the command upstream falls back to without them
   universal clipboard keys    oah-universal-clipboard (xdotool)
 Bindings with no ready X11 equivalent are listed at the end of sxhkdrc and
-left unbound (see the Deferred list on the project board).
+left unbound (see the Deferred list on the project board), including those
+whose action belongs to a Deferred feature (DEFERRED below): a key that did
+nothing, or claimed a change that never happened, is worse than no key.
 
 Re-run on every upstream release.
 
@@ -166,6 +168,29 @@ FUNCTIONS = {
 }
 
 
+# Actions that belong to features on the board's Deferred list (no ready X11
+# equivalent yet). Matched as substrings of the binding's action.
+DEFERRED = [
+    ("omarchy-hyprland-window-tiled-fullscreen-toggle", "tiled fullscreen"),
+    ('fullscreen({ mode = "maximized" })', "full width (in-layout maximize)"),
+    ("omarchy-hyprland-window-width", "scrolling layout (window width)"),
+    ("omarchy-hyprland-workspace-layout-toggle", "scrolling/floating workspace layouts"),
+    ("toggle_special(", "special workspaces (scratchpad, Quake console)"),
+    ('workspace = "special:', "special workspaces (scratchpad, Quake console)"),
+    ("omarchy-hyprland-window-minimize", "minimize"),
+    ("hl.dsp.group.", "window groups"),
+    ("into_group", "window groups"),
+    ("out_of_group", "window groups"),
+    ("omarchy-hyprland-monitor-scaling", "per-monitor scaling"),
+    ("omarchy-hyprland-window-transparency-toggle", "per-window transparency (window props)"),
+    ("omarchy-hyprland-window-single-square-aspect-toggle", "single-window square aspect"),
+]
+
+
+def deferred(action):
+    return next((f"Deferred: {feature}" for needle, feature in DEFERRED if needle in action), None)
+
+
 def translate(kind, action, description):
     if kind == "cmd":
         return ("cmd", action), None
@@ -222,6 +247,8 @@ def main():
             skipped.append((keys, description, why))
             continue
         t, why = translate(kind, action, description)
+        if t is not None and deferred(t[1]):
+            t, why = None, deferred(t[1])
         if t is None:
             skipped.append((keys, description, why))
             continue
