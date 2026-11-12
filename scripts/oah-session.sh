@@ -3,7 +3,7 @@
 # OAH X11 session: what Hyprland + upstream's default/hypr/autostart.lua do for
 # an Omarchy session, on X11 with bspwm.
 #
-#   1. Build the OMARCHY_PATH runtime tree and put its commands on PATH.
+#   1. Set OMARCHY_PATH to this OAH folder and put its commands on PATH.
 #   2. Seed $HOME on first login the way Omarchy's installer does, and
 #      generate this user's keybindings.
 #   3. Export the session environment to D-Bus/systemd activation.
