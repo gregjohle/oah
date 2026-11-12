@@ -48,11 +48,20 @@ if [[ ${1:-} == "--inner" ]]; then
   setsid bspwm -c "$OAH_ROOT/configs/bspwm/bspwmrc" >"$DEV_LOGS/bspwm.log" 2>&1 &
   pids+=($!)
 
+  bspwm_pid=$!
+
   # Give bspwm a moment to own the root window before the shell maps panels.
   for _ in {1..50}; do
     xprop -root _NET_SUPPORTING_WM_CHECK >/dev/null 2>&1 && break
     sleep 0.1
   done
+
+  # A session without its window manager looks almost normal (the shell still
+  # draws), so say loudly when bspwm isn't there; it has happened at startup.
+  bspwm_gone() {
+    echo "oah-dev: WARNING: bspwm is not running: $(tail -n 1 "$DEV_LOGS/bspwm.log" 2>/dev/null)" >&2
+  }
+  ( while kill -0 "$bspwm_pid" 2>/dev/null; do sleep 1; done; bspwm_gone ) &
 
   # Keeps the shell's panels in their layers (wallpaper below, bar above),
   # which X11 window managers don't do for unmanaged dock windows.
@@ -75,6 +84,7 @@ if [[ ${1:-} == "--inner" ]]; then
 
   if [[ -n $screenshot ]]; then
     sleep "$after"
+    kill -0 "$bspwm_pid" 2>/dev/null || oah_die "bspwm exited before the screenshot (see $DEV_LOGS/bspwm.log)"
     import -window root "$screenshot"
     echo "Screenshot: $screenshot"
     exit 0
