@@ -43,7 +43,8 @@ if [[ ${1:-} == "--inner" ]]; then
   stop_inner() {
     local pid
     # The watchdog first, or stopping bspwm below would set it off.
-    [[ -n $watchdog ]] && kill "$watchdog" 2>/dev/null
+    # (|| true: under set -e a watchdog that already exited must not end the trap here.)
+    [[ -n $watchdog ]] && { kill "$watchdog" 2>/dev/null || true; }
     for pid in "${pids[@]}"; do kill -TERM -- "-$pid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null || true; done
   }
   trap stop_inner EXIT
