@@ -44,8 +44,9 @@ if (( clear )); then
   exec python3 -c '
 import sys
 from Xlib import X, display
+from Xlib.protocol import request
 d = display.Display()
-d.set_selection_owner(d.intern_atom(sys.argv[1]), X.NONE, X.CurrentTime)
+request.SetSelectionOwner(display=d.display, window=X.NONE, selection=d.intern_atom(sys.argv[1]), time=X.CurrentTime)
 d.sync()
 ' "$( [[ $selection == primary ]] && echo PRIMARY || echo CLIPBOARD )"
 fi
