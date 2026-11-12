@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Keep the Omarchy shell's X11 panels in their layers.
+"""Keep the Omarchy shell's X11 panels in their layers, and give the keyboard
+to the ones that take it.
 
 On Wayland, Hyprland's layer-shell puts the wallpaper on the Background layer
 and the bar, menus, OSD and notifications on the Top/Overlay layers, whatever
@@ -15,13 +16,21 @@ to be above go to the top, keeping their relative order. It never touches
 windows bspwm manages, and only restacks when the order is actually wrong, so
 its own restacking can't loop.
 
+Keyboard focus: on Wayland, a layer-shell surface with keyboard focus
+Exclusive or OnDemand (the clipboard and emoji pickers, menus, keyboard-driven
+panels, polkit) gets the keyboard as soon as it maps. On X11 the shell maps
+them as unmanaged windows that set WM_HINTS input = True ("focusable"), and
+nothing gives them focus, so keys keep going to the app behind. This daemon
+focuses such a window when it becomes viewable (or turns focusable), and when
+it goes away while holding focus, gives focus back to bspwm's active window.
+
 Usage: oah-x11-stacking [--once]
   --once  fix the stacking once and exit (for tests)
 """
 
 import sys
 
-from Xlib import X, Xatom, display, error
+from Xlib import X, Xatom, Xutil, display, error
 
 
 def main() -> int:
@@ -35,6 +44,7 @@ def main() -> int:
     ABOVE = atom("_NET_WM_STATE_ABOVE")
     WM_TYPE = atom("_NET_WM_WINDOW_TYPE")
     DOCK = atom("_NET_WM_WINDOW_TYPE_DOCK")
+    ACTIVE = atom("_NET_ACTIVE_WINDOW")
 
     def atoms(w, prop):
         try:
@@ -77,18 +87,104 @@ def main() -> int:
         except error.XError:
             pass  # a window vanished mid-restack; the next event retries
 
+    # --- keyboard focus for focusable shell windows ---------------------------
+
+    watched = set()  # shell windows whose property changes we listen to
+
+    def shell_dock(w):
+        return DOCK in atoms(w, WM_TYPE)
+
+    def takes_keyboard(w):
+        try:
+            hints = w.get_wm_hints()
+        except error.XError:
+            return False
+        return bool(hints and hints.flags & Xutil.InputHint and hints.input)
+
+    def watch(w):
+        if w.id not in watched:
+            try:
+                w.change_attributes(event_mask=X.PropertyChangeMask)
+                watched.add(w.id)
+            except error.XError:
+                pass
+
+    def give_focus(w):
+        try:
+            w.set_input_focus(X.RevertToPointerRoot, X.CurrentTime)
+            d.sync()
+        except error.XError:
+            pass
+
+    def return_focus(w):
+        """w stopped taking the keyboard; if it still has focus (or focus fell
+        to nothing), hand it back to bspwm's active window."""
+        try:
+            focus = d.get_input_focus().focus
+        except error.XError:
+            return
+        current = focus.id if hasattr(focus, "id") else focus
+        if current not in (w.id, X.NONE, X.PointerRoot, root.id):
+            return
+        try:
+            p = root.get_full_property(ACTIVE, Xatom.WINDOW)
+        except error.XError:
+            p = None
+        target = d.create_resource_object("window", p.value[0]) if p and p.value[0] else None
+        if target is not None and mapped(target):
+            give_focus(target)
+        else:
+            try:
+                d.set_input_focus(X.PointerRoot, X.RevertToPointerRoot, X.CurrentTime)
+                d.sync()
+            except error.XError:
+                pass
+
+    def on_focus_event(e):
+        w = getattr(e, "window", None)
+        if w is None:
+            return
+        if e.type == X.MapNotify:
+            if shell_dock(w):
+                watch(w)
+                if takes_keyboard(w):
+                    give_focus(w)
+        elif e.type == X.UnmapNotify:
+            if w.id in watched:
+                return_focus(w)
+        elif e.type == X.DestroyNotify:
+            watched.discard(w.id)
+        elif e.type == X.PropertyNotify and e.atom == Xatom.WM_HINTS and w.id in watched:
+            if not mapped(w):
+                return
+            if takes_keyboard(w):
+                give_focus(w)
+            else:
+                return_focus(w)
+
     root.change_attributes(event_mask=X.SubstructureNotifyMask)
     enforce()
     if once:
         return 0
+    try:
+        for w in root.query_tree().children:
+            if mapped(w) and shell_dock(w):
+                watch(w)
+    except error.XError:
+        pass
 
     relevant = (X.MapNotify, X.ConfigureNotify, X.CirculateNotify, X.ReparentNotify)
     while True:
-        # Coalesce a burst of events into one check, but look at every event
-        # in it: a MapNotify behind a CreateNotify must still trigger it.
-        wanted = d.next_event().type in relevant
+        # Coalesce a burst of events into one stacking check, but look at
+        # every event in it: a MapNotify behind a CreateNotify must still
+        # trigger it. Focus is handled per event, in order.
+        e = d.next_event()
+        on_focus_event(e)
+        wanted = e.type in relevant
         while d.pending_events():
-            wanted = d.next_event().type in relevant or wanted
+            e = d.next_event()
+            on_focus_event(e)
+            wanted = e.type in relevant or wanted
         if wanted:
             enforce()
 
